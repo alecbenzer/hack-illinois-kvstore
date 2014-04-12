@@ -7,7 +7,9 @@ class MMapAllocatorTest : public testing::Test {
  protected:
   template <class T>
   std::unique_ptr<MMapAllocator<T>> make_allocator() {
-    return std::unique_ptr<MMapAllocator<T>>(MMapAllocator<T>::New("test.db"));
+    std::unique_ptr<MMapAllocator<T>> ptr(MMapAllocator<T>::New("test.db"));
+    EXPECT_FALSE(ptr.get() == NULL);
+    return ptr;
   }
 
   template <class T>
