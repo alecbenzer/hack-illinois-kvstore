@@ -13,34 +13,38 @@
 #include <string>
 
 class Server {
- public:
-  // Constructor
-  Server();
+public:
+    // Constructor
+    Server();
 
-  // Destructor
-  ~Server();
+    //Destructor
+    ~Server();
 
- private:
-  // Receive from TCP Socket
-  void recvCommand();
+    //Main Loop for testing
+    void main_loop();
 
-  // Parse Message
-  void parse(char* message);
+private:
+    // Receive from TCP Socket
+    void recvCommand();
 
-  // Handle Set
-  char* set(char* key, char* value);
+    // Parse Message
+    void parse(char* message, int fdClient);
 
-  // Handle Get
-  char* get(char* key);
+    // Handle Set
+    char* set(char* key, char* value, int fdClient);
 
-  // Send to TCP Socket
-  void sendResponse(char* response);
+    // Handle Get
+    char* get(char* key, int fdClient);
 
-  // TCP Socket
-  int sock;
+    // Send to TCP Socket
+    void sendResponse(char* response, int fdClient);
 
-  // Map of Keys and Values
-  std::unordered_map<std::string, std::string> kvStore;
+    // TCP Socket
+    int sock;
+
+    // Map of Keys and Values
+    std::unordered_map<std::string, std::string> kvStore;
+
 };
 
 #endif

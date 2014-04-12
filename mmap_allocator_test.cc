@@ -18,6 +18,7 @@ class MMapAllocatorTest : public testing::Test {
 
 TEST_F(MMapAllocatorTest, VectorInt) {
   auto alloc = make_allocator<int>();
+  ASSERT_FALSE(alloc.get() == NULL);
   auto vec = make_vector<int>(alloc.get());
 
   for (int i = 0; i < 10; ++i) {
@@ -33,6 +34,7 @@ TEST_F(MMapAllocatorTest, VectorInt) {
 
 TEST_F(MMapAllocatorTest, VectorIntInitialized) {
   auto alloc = make_allocator<int>();
+  ASSERT_FALSE(alloc.get() == NULL);
   std::vector<int, MMapAllocator<int>> vec({4, 42, 24, 7}, *alloc);
 
   EXPECT_EQ(4, vec.size());
@@ -44,6 +46,7 @@ TEST_F(MMapAllocatorTest, VectorIntInitialized) {
 
 TEST_F(MMapAllocatorTest, VectorDouble) {
   auto alloc = make_allocator<double>();
+  ASSERT_FALSE(alloc.get() == NULL);
   auto vec = make_vector<double>(alloc.get());
 
   for (int i = 0; i < 10; ++i) {
@@ -59,6 +62,7 @@ TEST_F(MMapAllocatorTest, VectorDouble) {
 
 TEST_F(MMapAllocatorTest, VectorString) {
   auto alloc = make_allocator<std::string>();
+  ASSERT_FALSE(alloc.get() == NULL);
   auto vec = make_vector<std::string>(alloc.get());
 
   for (int i = 0; i < 10; ++i) {
@@ -79,6 +83,7 @@ TEST_F(MMapAllocatorTest, MapStringString) {
   using std::map;
 
   auto alloc = make_allocator<pair<const string, string>>();
+  ASSERT_FALSE(alloc.get() == NULL);
   map<string, string, less<string>, MMapAllocator<pair<const string, string>>>
       m(less<string>(), *alloc);
 
