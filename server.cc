@@ -2,7 +2,7 @@
  * @file server.cc
  * Implementation of Server
  * @date April 2014
- * @author Sai Koppula
+ * @author Sai Koppula, Vikram Jayashankar
  */
 
 #include "server.h"
@@ -37,46 +37,87 @@ void Server::recvCommand()
     count = ntohl(count);
     if(r >= 0)
     {
-	char * buf = (char *) malloc(count*sizeof(char));
-	r = read(sock, buf, count);
-	if(r != count) std::cout << "Error: Invalid Read Length." << std::endl;
+        char * buf = (char *) malloc(count*sizeof(char));
+        r = read(sock, buf, count);
+        if(r != count) std::cout << "Error: Invalid Read Length." << std::endl;
 
-	parse(buf);
+        parse(buf);
     }
 }
 
 void Server::parse(char * message)
 {
-    char opcode = message[0];
+    char opcode = message[4];
 
     if(opcode == OP_SET)
     {
-	
+        //Read Keylength with endian fix
+        uint32_t keyLength = ntohl(*((uint32_t*)&message[5]));
+        
+        //Get Key
+        char* key = (char*)malloc(keyLength*sizeof(char)); //maybe null terminate?
+        memcpy(key, &message[9], keyLength*sizeof(char));
+        
+        //Read ValueLength with endian fix
+        uint32_t valueLength = ntohl(*((uint32_t*)&message[9+keyLength]));
+
+        //Get Value
+        char* value = (char*)malloc(valueLength*sizeof(char)); //null terinate?
+        memcpy(value, &message[13+keyLength], valueLength*sizeof(char));
+        
+        sendResponse(set(key, value));
     }
+
     else if(opcode == OP_GET)
     {
-	//Read Keylength
-	uint32_t keyLength;
-	keyLength = *( (uint32_t *) &message[1]);
+        //Read Keylength
+        uint32_t keyLength;
+        keyLength = *( (uint32_t *) &message[5]);
 
-	//Endian Checking
-	keyLength = ntohl(keyLength);
+        //Endian Checking
+        keyLength = ntohl(keyLength);
 
-	//Get Key
-	char * key = (char *) malloc(keyLength*sizeof(char));
-	memcpy(key, &message[2], keyLength*sizeof(char));
+        //Get Key
+        char * key = (char *) malloc(keyLength*sizeof(char)); //null terinate?
+        memcpy(key, &message[9], keyLength*sizeof(char));
 
-	sendResponse(get(key));
+        sendResponse(get(key));
     }
     else
     {
-	std::cout << "Invalid Opcode." << std::endl;
+	    std::cout << "Invalid Opcode." << std::endl;
     }
 }
 
-char * Server::set(char * key, char * value)
+char * Server::set(char * key, char * value) //might be a problem converting to std::strings when char* isn't null terminated?
 {
-    return NULL;
+    char* strReturn;
+    int size;
+    std::string strKey = key;
+    std::string strValue = value;
+    std::unordered_map<std::string, std::string>::const_iterator it = kvStore.find(strKey);
+
+    kvStore[strKey] = strValue; //replace
+
+    uint32_t msgLength = 9 + strKey.size() + strValue.size();
+    uint32_t keyLtoSend = strKey.size();
+    uint32_t valueLtoSend = strValue.size();
+
+    strReturn = (char*)malloc((4 + msgLength) * sizeof(char));
+
+    msgLength = htonl(msgLength);
+    keyLtoSend = htonl(keyLtoSend);
+    valueLtoSend = htonl(valueLtoSend);
+
+    // Build strReturn
+    memcpy(&strReturn[0], &msgLength, INT_LENGTH);                      // Message Length (4)
+    strReturn[4] = OP_SET_ACK;                                          // OPCODE         (1)
+    memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);                     // Key Length     (4)
+    memcpy(&strReturn[9], &strKey, strKey.size());                      // Key            (strKey.size())
+    memcpy(&strReturn[9+strKey.size()], &valueLtoSend, INT_LENGTH);     // Value Length   (4)
+    memcpy(&strReturn[13+strKey.size()],&strValue,strValue.size());     // Value          (strValue.size())
+    
+    return strReturn;
 }
 
 char * Server::get(char * key)
@@ -89,47 +130,43 @@ char * Server::get(char * key)
 
     if(it == kvStore.end())
     {
-	//Construct Fail Get Message
-	uint32_t keyLtoSend = strKey.size();
-	strReturn = (char *) malloc((9+strKey.size()) * sizeof(char));
-	strReturn[4] = OP_GET_FAIL;
-	keyLtoSend = htonl(keyLtoSend);
-	memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);
-	memcpy(&strReturn[9], &strKey, strKey.size());
-	uint32_t msgLength = 5 + strKey.size();
-	msgLength = htonl(msgLength);
-	memcpy(&strReturn[0], &msgLength, INT_LENGTH);
-	return strReturn;
+        //Construct Fail Get Message
+        uint32_t keyLtoSend = strKey.size();
+        strReturn = (char *) malloc((13+strKey.size()) * sizeof(char)); //changed to 13 because we forgot 4 bytes for message length
+        strReturn[4] = OP_GET_FAIL;
+        keyLtoSend = htonl(keyLtoSend);
+        memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);
+        memcpy(&strReturn[9], &strKey, strKey.size());
+        uint32_t msgLength = 5 + strKey.size();
+        msgLength = htonl(msgLength);
+        memcpy(&strReturn[0], &msgLength, INT_LENGTH);
     }
-
     else
     {
-	//Construct Successful Get Message
-	uint32_t keyLtoSend = strKey.size();
-	uint32_t valueLtoSend;
-	strValue = kvStore[key];
-	valueLtoSend = strValue.size();
-	strReturn = (char *) malloc((9+strKey.size()+strValue.size()) * sizeof(char));
-	strReturn[4] = OP_GET_RET;
-	keyLtoSend = htonl(keyLtoSend);
-	valueLtoSend = htonl(valueLtoSend);
-	memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);
-	memcpy(&strReturn[9], &strKey, strKey.size());
-	memcpy(&strReturn[9+strKey.size()], &valueLtoSend, INT_LENGTH);
-	memcpy(&strReturn[13+strKey.size()], &strValue, strValue.size());
-	uint32_t msgLength = 9 + strKey.size() + strValue.size();
-	msgLength = htonl(msgLength);
-	memcpy(&strReturn[0], &msgLength, INT_LENGTH);
-	return strReturn;
+        //Construct Successful Get Message
+        uint32_t keyLtoSend = strKey.size();
+        uint32_t valueLtoSend;
+        strValue = kvStore[key];
+        valueLtoSend = strValue.size();
+        strReturn = (char *) malloc((13+strKey.size()+strValue.size()) * sizeof(char)); //changed to 13 because we forgot 4 bytes for message length
+
+        strReturn[4] = OP_GET_RET;
+        keyLtoSend = htonl(keyLtoSend);
+        valueLtoSend = htonl(valueLtoSend);
+        memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);
+        memcpy(&strReturn[9], &strKey, strKey.size());
+        memcpy(&strReturn[9+strKey.size()], &valueLtoSend, INT_LENGTH);
+        memcpy(&strReturn[13+strKey.size()], &strValue, strValue.size());
+        uint32_t msgLength = 9 + strKey.size() + strValue.size();
+        msgLength = htonl(msgLength);
+        memcpy(&strReturn[0], &msgLength, INT_LENGTH);
     }
-
-
-   
+    return strReturn;
 }
 
 void Server::sendResponse(char * response)
 {
-    return;
+    std::cout << response << std::endl;
 }
 
 
