@@ -5,12 +5,12 @@
 
 class MMapAllocatorTest : public testing::Test {
  protected:
-  template<class T>
+  template <class T>
   std::unique_ptr<MMapAllocator<T>> make_allocator() {
     return std::unique_ptr<MMapAllocator<T>>(MMapAllocator<T>::New("test.db"));
   }
 
-  template<class T>
+  template <class T>
   std::vector<T, MMapAllocator<T>> make_vector(MMapAllocator<T>* alloc) {
     return std::vector<T, MMapAllocator<T>>(*alloc);
   }
@@ -73,8 +73,14 @@ TEST_F(MMapAllocatorTest, VectorString) {
 }
 
 TEST_F(MMapAllocatorTest, MapStringString) {
-  auto alloc = make_allocator<std::pair<const std::string, std::string>>();
-  std::map<std::string, std::string, std::less<std::string>, MMapAllocator<std::pair<const std::string, std::string>>> m(std::less<std::string>(), *alloc);
+  using std::pair;
+  using std::string;
+  using std::less;
+  using std::map;
+
+  auto alloc = make_allocator<pair<const string, string>>();
+  map<string, string, less<string>, MMapAllocator<pair<const string, string>>>
+      m(less<string>(), *alloc);
 
   m["Hello"] = "World";
   m["Goodbye"] = "All";
