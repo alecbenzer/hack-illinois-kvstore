@@ -9,15 +9,16 @@
 #include <sys/mman.h>
 
 template <class T>
-class MMapAllocator {
+class MMapAllocator : public std::allocator<T> {
  public:
   typedef T *pointer;
   typedef const T *const_pointer;
-  typedef T &reference;
-  typedef const T &const_reference;
-  typedef T value_type;
+  // typedef T &reference;
+  // typedef const T &const_reference;
+  // typedef T value_type;
   typedef size_t size_type;
-  typedef ptrdiff_t difference_type;
+  // typedef ptrdiff_t difference_type;
+  typedef off_t offset_type;
 
   static const size_t BASE = 8;
 

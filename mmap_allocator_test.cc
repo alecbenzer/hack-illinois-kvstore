@@ -1,3 +1,4 @@
+#include <map>
 #include <memory>
 #include <gtest/gtest.h>
 #include "mmap_allocator.h"
@@ -16,7 +17,6 @@ class MMapAllocatorTest : public testing::Test {
 };
 
 TEST_F(MMapAllocatorTest, VectorInt) {
-  // std::unique_ptr<MMapAllocator<int>> alloc(MMapAllocator<int>::New("test.db"));
   auto alloc = make_allocator<int>();
   auto vec = make_vector<int>(alloc.get());
 
@@ -70,4 +70,16 @@ TEST_F(MMapAllocatorTest, VectorString) {
   for (int i = 0; i < vec.size(); ++i) {
     EXPECT_EQ("Hello, world!", vec[i]);
   }
+}
+
+TEST_F(MMapAllocatorTest, MapStringString) {
+  auto alloc = make_allocator<std::pair<const std::string, std::string>>();
+  std::map<std::string, std::string, std::less<std::string>, MMapAllocator<std::pair<const std::string, std::string>>> m(std::less<std::string>(), *alloc);
+
+  m["Hello"] = "World";
+  m["Goodbye"] = "All";
+  m["2+2"] = "4";
+
+  EXPECT_EQ(3, m.size());
+  EXPECT_EQ("World", m["Hello"]);
 }
