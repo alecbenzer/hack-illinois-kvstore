@@ -31,10 +31,10 @@ private:
     void parse(char* message, int fdClient);
 
     // Handle Set
-    char* set(char* key, char* value, int fdClient);
+    char* set(const char* key, const char* value, int fdClient);
 
     // Handle Get
-    char* get(char* key, int fdClient);
+    char* get(const char* key, int fdClient);
 
     // Send to TCP Socket
     void sendResponse(char* response, int fdClient);

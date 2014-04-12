@@ -11,7 +11,6 @@
 #include <iostream>
 #include <cstdint>
 #include <string>
-#include <fcntl.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -28,6 +27,7 @@
 #define BUF_SIZE    256
 #define MAXBUF	    256
 #define PORT_NO	    9999
+
 
 Server::Server()
 {
@@ -47,7 +47,6 @@ Server::Server()
 	perror("bind");
     }
 
-    //fcntl(sock, F_SETFL, O_NONBLOCK);
 
     /*---Make it a "listening socket"---*/
     if ( listen(sock, 20) != 0 )
@@ -92,13 +91,20 @@ void Server::main_loop()
 	int r;
 	
 	r = recv(clientfd, &count, INT_LENGTH, 0);
+    //std::cout << r << std::endl;
 	count = ntohl(count);
 	if(r >= 0)
 	{
 		char * buf = (char *) malloc(count*sizeof(char));
-		r = recv(sock, buf, count, 0);
+		r = recv(clientfd, buf, count, 0);
+        //std::cout << count << r << std::endl;
 		if(r != count) std::cout << "Error: Invalid Read Length." << std::endl;
-		else parse(buf, clientfd);
+		else
+        {
+            std::cout << "R VAL: " << r << std::endl;
+            std::cout << "BUF: " << buf[1] << buf[2] << std::endl;
+            parse(buf,clientfd);
+        }
 	}
     //send(clientfd, buffer, recv(clientfd, buffer, MAXBUF, 0), 0);
 
@@ -121,7 +127,11 @@ void Server::recvCommand()
 		char * buf = (char *) malloc(count*sizeof(char));
 		r = read(sock, buf, count);
 		if(r != count) std::cout << "Error: Invalid Read Length." << std::endl;
-		else parse(buf,0);
+		else
+        {
+            std::cout << "R VAL: " << r << std::endl;
+            parse(buf,0);
+        }
 	}
 }
 
@@ -130,24 +140,26 @@ void Server::parse(char * message, int fdClient)
     char opcode = message[0];
 
     if (opcode == OP_SET) {
+      std::cout << "Parsed to OP_SET\n";
       // Read Keylength with endian fix
-      uint32_t keyLength = ntohl(*((uint32_t *)&message[5]));
-
+      uint32_t keyLength = ntohl(*((uint32_t *)&message[1]));
       // Get Key
       char *key = (char *)malloc(keyLength * sizeof(char) + 1);
       memcpy(key, &message[5], keyLength * sizeof(char));
       key[keyLength] = 0;
 
       // Read ValueLength with endian fix
-      uint32_t valueLength = ntohl(*((uint32_t *)&message[9 + keyLength]));
+      uint32_t valueLength = ntohl(*((uint32_t *)&message[5 + keyLength]));
 
       // Get Value
       char *value = (char *)malloc(valueLength * sizeof(char) + 1);
       memcpy(value, &message[9 + keyLength], valueLength * sizeof(char));
       value[valueLength] = 0;  // null terminate the string
+      sendResponse(set((const char*)key, (const char*)value, fdClient), fdClient);
 
-      sendResponse(set(key, value, fdClient), fdClient);
-    } else if (opcode == OP_GET) {
+    }
+    else if (opcode == OP_GET) {
+      std::cout << "Parsed to OP_GET\n";
       // Read Keylength
       uint32_t keyLength;
       keyLength = *((uint32_t *)&message[1]);
@@ -160,13 +172,13 @@ void Server::parse(char * message, int fdClient)
       memcpy(key, &message[5], keyLength * sizeof(char));
       key[keyLength] = 0;
 
-      sendResponse(get(key, fdClient), fdClient);
+      sendResponse(get((const char*)key, fdClient), fdClient);
     } else {
       std::cout << "Invalid Opcode" << std::endl;
     }
 }
 
-char * Server::get(char * key, int fdClient) {
+char * Server::get(const char * key, int fdClient) {
   char *strReturn;
   int size;
   std::string strKey = key;
@@ -210,14 +222,14 @@ char * Server::get(char * key, int fdClient) {
   return strReturn;
 }
 
-char *Server::set(char * key, char * value, int fdClient)		// might be a problem converting to
+char *Server::set(const char * key, const char * value, int fdClient)		// might be a problem converting to
 												// std::strings when char* isn't null
 												// terminated?
 {
   char *strReturn;
   int size;
-  std::string strKey = key;
-  std::string strValue = value;
+  std::string strKey = std::string(key);
+  std::string strValue = std::string(value);
   std::unordered_map<std::string, std::string>::const_iterator it =
 	  kvStore.find(strKey);
 
@@ -228,6 +240,8 @@ char *Server::set(char * key, char * value, int fdClient)		// might be a problem
   uint32_t valueLtoSend = strValue.size();
 
   strReturn = (char *)malloc((4 + msgLength) * sizeof(char));
+
+  std::cout << strKey << std::endl;
 
   msgLength = htonl(msgLength);
   keyLtoSend = htonl(keyLtoSend);
@@ -251,7 +265,7 @@ void Server::sendResponse(char * response, int fdClient) {
 	std::cout << response << std::endl;
 	
 	uint32_t msgLength = ntohl(*((uint32_t *)&response[0]));
-	send(fdClient, response, msgLength, 0);
+	send(fdClient, response, msgLength+4, 0);
 	
 	
 }

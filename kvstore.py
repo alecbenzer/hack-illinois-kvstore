@@ -31,26 +31,32 @@ def recieve_message(msg=None):
     import struct
     if msg:
         msgLength = struct.unpack(">i", msg[:4])
-        OP_CODE = struct.unpack("b", msg[4])
+        OP_CODE = int(struct.unpack("b", msg[4])[0])
 
         if OP_CODE == OP_GET_RET:
-            keyLength = int(struct.unpack("=i", msg[5:9]))
-            key = struct.unpack("s", msg[9:9+keyLength])
-            valLength = int(struct.unpack("=i", msg[9+keyLength:14+keyLength]))
-            val = struct.unpack("s", msg[14+keyLength:14+keyLength+valLength)
+            keyLength = int(struct.unpack_from("=i", msg, 5)[0])
+            key = struct.unpack("s", msg[9:9+keyLength])[0]
+            valueLength = int(struct.unpack_from("=i", msg, 9+keyLength)[0])
+            val = struct.unpack("s", msg[13+keyLength:])[0]
+
             print "Recieved: GET key={} -> {}".format(key, val)
 
         elif OP_CODE == OP_GET_FAIL:
-            keyLength = int(struct.unpack("=i", msg[5:9]))
-            key = struct.unpack("s", msg[9:9+keyLength])
+            keyLength = int(struct.unpack_from("=i", msg, 5)[0])
+            key = struct.unpack("s", msg[9:9+keyLength])[0]
             print "Recieved: GET FAILED for key={}".format(key)
             
         elif OP_CODE == OP_SET_ACK:
-            keyLength = int(struct.unpack("=i", msg[5:9]))
-            key = struct.unpack("s", msg[9:9+keyLength])
-            valLength = int(struct.unpack("=i", msg[9+keyLength:14+keyLength]))
-            val = struct.unpack("s", msg[14+keyLength:14+keyLength+valLength)
-            print "Recieved: SET k: {} -> v: {}".format(key, val)
+            keyLength = int(struct.unpack_from("=i", msg, 5)[0])
+            print keyLength
+            print len(msg[9:9+keyLength])
+            key = struct.unpack("s", msg[9:9+keyLength])[0]
+            valueLength = int(struct.unpack_from("=i", msg, 9+keyLength)[0])
+            val = struct.unpack("s", msg[13+keyLength:])[0]
+            print "ACK: SET key={} -> {}".format(key, val)
+
+        else:
+            print "failed, opcode: {}".format(OP_CODE)
             
     else:
         print "fail"
@@ -61,25 +67,28 @@ def do_get(key):
     keyLength = len(key)
     msgLength = 1+4+keyLength #1 byte for OPCode + 4bytes for keylength num + keylength bytes
     msg = bytearray(4+msgLength) #4byes for msgLength int
-    
-    msg.append(struct.pack(">i", msgLength)) # add bytes for msg length to bytearray
-    msg.append(OP_GET)
-    msg.append(struct.pack(">i", keyLength)) # add bytes for keylength
-    msg.append(struct.pack("s", key)) #add bytes for key
+    struct.pack_into("!i", msg, 0, msgLength)
+    struct.pack_into("b", msg, 4, OP_GET)
+    struct.pack_into("!i", msg, 5, keyLength)
+    struct.pack_into("s", msg, 9, key)
+
+    print "sending message for get {}".format(key)
+
     send_message(msg)
 
 def do_set(key, val):
     import struct
     keyLength = len(key)
     valueLength = len(val)
-    msgLength = 1+4+keyLength+valueLength
-    msg = bytearray(4+msgLength) #4byes for msgLength int
+    msgLength = 1+8+keyLength+valueLength
     
-    msg.append(struct.pack(">i", msgLength)) # add bytes for msg length to bytearray
-    msg.append(struct.pack("b",OP_SET)) # opcode
-    msg.append(struct.pack(">i", keyLength)) # add bytes for keylength
-    msg.append(struct.pack("s", key)) #add bytes for key
-    msg.append(struct.pack(">i", valueLength)) # add bytes for keylength
-    msg.append(struct.pack("s", val)) #add bytes for key
-
+    msg = bytearray(4+msgLength)
+    struct.pack_into("!i", msg, 0, msgLength)
+    struct.pack_into("b", msg, 4, OP_SET)
+    struct.pack_into("!i", msg, 5, keyLength)
+    struct.pack_into("s", msg, 9, key)
+    struct.pack_into("!i", msg, 9+keyLength, valueLength)
+    struct.pack_into("s", msg, 13+keyLength, val)
+    
+    print "sending message for set {}->{}".format(key,val)
     send_message(msg)
