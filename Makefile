@@ -18,5 +18,8 @@ server.o: server.cc
 main.o: main.cc
 	clang++ -std=c++11 -stdlib=libc++ -c main.cc
 
+server: server.o main.o
+	clang++ -std=c++11 server.o main.o -o server
+
 clean:
 	-rm *.o

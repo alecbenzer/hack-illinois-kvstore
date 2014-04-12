@@ -1,22 +1,23 @@
 import socket
 import sys
 
-HOST, POST = 'localhost', 9999
-data = 'hello'
+HOST, PORT = 'localhost', 9999
+data = 'Sai'
 
-sock = socket.socket(socket.AD_INT, socket.SOCK_STREAM)
-
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+rec="foo"
 try:
     #connect to server
     sock.connect((HOST, PORT))
-    
+	    
     #send message
-    sock.sendall(data)
+    sock.send(data)
 
-    recieved = sock.recv(1024)
+    rec = sock.recv(4096)
 
 finally:
     sock.close()
 
-print "Sent:    {}".format(data)
-print "Received:{}".format(recieved)
+    print "Sent:    {}".format(data)
+    print "Received:{}".format(rec)
+
