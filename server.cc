@@ -87,47 +87,25 @@ void Server::main_loop()
     clientfd = accept(sock, (struct sockaddr*)&client_addr, &addrlen);
     //printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
-    /*---Echo back anything sent---*/
-    send(clientfd, buffer, recv(clientfd, buffer, MAXBUF, 0), 0);
+    /*---Handle the Message Sent---*/
+	uint32_t count;
+	int r;
+	
+	r = recv(clientfd, &count, INT_LENGTH, 0);
+	count = ntohl(count);
+	if(r >= 0)
+	{
+		char * buf = (char *) malloc(count*sizeof(char));
+		r = recv(sock, buf, count, 0);
+		if(r != count) std::cout << "Error: Invalid Read Length." << std::endl;
+		else parse(buf, clientfd);
+	}
+    //send(clientfd, buffer, recv(clientfd, buffer, MAXBUF, 0), 0);
 
     /*---Close data connection---*/
     close(clientfd);
     }
-    /*
-    int32_t size = -1;
-    int check, c;
-    char buf[BUF_SIZE];
     
-    std::cout << "In main loop!" << std::endl;
-    while(size < 0)
-    {
-	//std::cout << size << std::endl;
-	size = recvfrom(sock, buf, BUF_SIZE, 0, NULL, NULL);
-    }
-
-    std::cout << "Message Received: " << buf << std::endl;
-
-    std::string strAck = "Got it Vikram!";
-
-    struct sockaddr_in raddr;
-    memset(&raddr, 0, sizeof(struct sockaddr_in));
-
-    raddr.sin_family = AF_INET;
-
-    //convert the ip-address to human readable form 
-    std::string locHost = "127.0.0.1";
-    inet_pton(AF_INET, locHost.c_str() , &raddr.sin_addr);
-    raddr.sin_port = htons(PORT_NO);
-
-    std::cout << "Message about to send." << std::endl;
-    //send the message to its destination
-    c = sendto(sock, strAck.c_str(), strAck.size(), 0, (struct sockaddr*)&raddr, sizeof(raddr));
-
-    if (c != sizeof(strAck)) 
-    {
-	std::cout << "Bad write " << c << " != " << sizeof(strAck) << std::endl;
-    }
-    */
 
 }
 
@@ -143,14 +121,13 @@ void Server::recvCommand()
 		char * buf = (char *) malloc(count*sizeof(char));
 		r = read(sock, buf, count);
 		if(r != count) std::cout << "Error: Invalid Read Length." << std::endl;
-
-		parse(buf);
+		else parse(buf,0);
 	}
 }
 
-void Server::parse(char * message)
+void Server::parse(char * message, int fdClient)
 {
-    char opcode = message[4];
+    char opcode = message[0];
 
     if (opcode == OP_SET) {
       // Read Keylength with endian fix
@@ -158,7 +135,7 @@ void Server::parse(char * message)
 
       // Get Key
       char *key = (char *)malloc(keyLength * sizeof(char) + 1);
-      memcpy(key, &message[9], keyLength * sizeof(char));
+      memcpy(key, &message[5], keyLength * sizeof(char));
       key[keyLength] = 0;
 
       // Read ValueLength with endian fix
@@ -166,30 +143,30 @@ void Server::parse(char * message)
 
       // Get Value
       char *value = (char *)malloc(valueLength * sizeof(char) + 1);
-      memcpy(value, &message[13 + keyLength], valueLength * sizeof(char));
+      memcpy(value, &message[9 + keyLength], valueLength * sizeof(char));
       value[valueLength] = 0;  // null terminate the string
 
-      sendResponse(set(key, value));
+      sendResponse(set(key, value, fdClient), fdClient);
     } else if (opcode == OP_GET) {
       // Read Keylength
       uint32_t keyLength;
-      keyLength = *((uint32_t *)&message[5]);
+      keyLength = *((uint32_t *)&message[1]);
 
       // Endian Checking
       keyLength = ntohl(keyLength);
 
       // Get Key
       char *key = (char *)malloc(keyLength * sizeof(char) + 1);
-      memcpy(key, &message[9], keyLength * sizeof(char));
+      memcpy(key, &message[5], keyLength * sizeof(char));
       key[keyLength] = 0;
 
-      sendResponse(get(key));
+      sendResponse(get(key, fdClient), fdClient);
     } else {
       std::cout << "Invalid Opcode" << std::endl;
     }
 }
 
-char * Server::get(char * key) {
+char * Server::get(char * key, int fdClient) {
   char *strReturn;
   int size;
   std::string strKey = key;
@@ -200,7 +177,7 @@ char * Server::get(char * key) {
   if (it == kvStore.end()) {
 	// Construct Fail Get Message
 	uint32_t keyLtoSend = strKey.size();
-	strReturn = (char *)malloc((13 + strKey.size()) * sizeof(char) + 1);
+	strReturn = (char *)malloc((9 + strKey.size()) * sizeof(char) + 1);
 	strReturn[4] = OP_GET_FAIL;
 	keyLtoSend = htonl(keyLtoSend);
 	memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);
@@ -233,7 +210,7 @@ char * Server::get(char * key) {
   return strReturn;
 }
 
-char *Server::set(char * key, char * value)		// might be a problem converting to
+char *Server::set(char * key, char * value, int fdClient)		// might be a problem converting to
 												// std::strings when char* isn't null
 												// terminated?
 {
@@ -269,6 +246,51 @@ char *Server::set(char * key, char * value)		// might be a problem converting to
   return strReturn;
 }
 
-void Server::sendResponse(char * response) {
-  std::cout << response << std::endl;
+void Server::sendResponse(char * response, int fdClient) {
+	
+	std::cout << response << std::endl;
+	
+	uint32_t msgLength = ntohl(*((uint32_t *)&response[0]));
+	send(fdClient, response, msgLength, 0);
+	
+	
 }
+
+
+
+
+/*
+ int32_t size = -1;
+ int check, c;
+ char buf[BUF_SIZE];
+ 
+ std::cout << "In main loop!" << std::endl;
+ while(size < 0)
+ {
+ //std::cout << size << std::endl;
+ size = recvfrom(sock, buf, BUF_SIZE, 0, NULL, NULL);
+ }
+ 
+ std::cout << "Message Received: " << buf << std::endl;
+ 
+ std::string strAck = "Got it Vikram!";
+ 
+ struct sockaddr_in raddr;
+ memset(&raddr, 0, sizeof(struct sockaddr_in));
+ 
+ raddr.sin_family = AF_INET;
+ 
+ //convert the ip-address to human readable form
+ std::string locHost = "127.0.0.1";
+ inet_pton(AF_INET, locHost.c_str() , &raddr.sin_addr);
+ raddr.sin_port = htons(PORT_NO);
+ 
+ std::cout << "Message about to send." << std::endl;
+ //send the message to its destination
+ c = sendto(sock, strAck.c_str(), strAck.size(), 0, (struct sockaddr*)&raddr, sizeof(raddr));
+ 
+ if (c != sizeof(strAck))
+ {
+ std::cout << "Bad write " << c << " != " << sizeof(strAck) << std::endl;
+ }
+ */

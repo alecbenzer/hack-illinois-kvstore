@@ -28,16 +28,16 @@ private:
     void recvCommand();
 
     // Parse Message
-    void parse(char* message);
+    void parse(char* message, int fdClient);
 
     // Handle Set
-    char* set(char* key, char* value);
+    char* set(char* key, char* value, int fdClient);
 
     // Handle Get
-    char* get(char* key);
+    char* get(char* key, int fdClient);
 
     // Send to TCP Socket
-    void sendResponse(char* response);
+    void sendResponse(char* response, int fdClient);
 
     // TCP Socket
     int sock;
