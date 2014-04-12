@@ -85,7 +85,7 @@ void Server::parse(char * message)
     }
     else
     {
-	    std::cout << "Invalid Opcode." << std::endl;
+	    std::cout << "Invalid Opcode" << std::endl;
     }
 }
 
