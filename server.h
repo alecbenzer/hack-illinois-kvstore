@@ -12,42 +12,39 @@
 #include <unordered_map>
 #include <string>
 
-class Server
-{
-    public:
-	
-        //Constructor
-        Server();
+class Server {
+public:
+    // Constructor
+    Server();
 
-        //Destructor
-        ~Server();
+    //Destructor
+    ~Server();
 
-	//Main Loop for testing
-	void main_loop();
-	
-    
-    private:
+    //Main Loop for testing
+    void main_loop();
 
-        //Receive from TCP Socket
-        void recvCommand();
+private:
+    // Receive from TCP Socket
+    void recvCommand();
 
-        //Parse Message
-        void parse(char * message);
+    // Parse Message
+    void parse(char* message);
 
-        //Handle Set
-        char * set(char * key, char * value);
+    // Handle Set
+    char* set(char* key, char* value);
 
-        //Handle Get
-        char * get(char * key);
+    // Handle Get
+    char* get(char* key);
 
-        //Send to TCP Socket
-        void sendResponse(char * response);
+    // Send to TCP Socket
+    void sendResponse(char* response);
 
-        //TCP Socket
-        int sock;
+    // TCP Socket
+    int sock;
 
-        //Map of Keys and Values
-        std::unordered_map<std::string, std::string> kvStore;
+    // Map of Keys and Values
+    std::unordered_map<std::string, std::string> kvStore;
+
 };
 
 #endif
