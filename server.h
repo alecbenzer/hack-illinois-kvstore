@@ -21,6 +21,10 @@ class Server
 
         //Destructor
         ~Server();
+
+	//Main Loop for testing
+	void main_loop();
+	
     
     private:
 

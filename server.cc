@@ -10,6 +10,13 @@
 #include <cstdlib>
 #include <iostream>
 #include <cstdint>
+#include <string>
+#include <fcntl.h>
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #define INT_LENGTH 4
 #define OP_SET	    0x02
@@ -18,14 +25,113 @@
 #define OP_GET_RET  0x13
 #define OP_GET_FAIL 0x23
 
+#define BUF_SIZE    256
+#define MAXBUF	    256
+#define PORT_NO	    9999
+
+//using namespace std::std::cout;
+//using namespace std::endl;
+
 Server::Server()
 {
+    //Set up channel infrastructure
+    struct  sockaddr_in svaddr;
+    memset(&svaddr, 0, sizeof(struct sockaddr_in));
     sock = socket(AF_INET, SOCK_STREAM, 0);
+    svaddr.sin_family = AF_INET;
+
+    //Endian Conversion
+    std::string locHost = "127.0.0.1";
+    inet_pton(AF_INET, locHost.c_str(), &svaddr.sin_addr);
+    svaddr.sin_port = htons(PORT_NO);
+
+    if(bind(sock, (struct sockaddr *)&svaddr, sizeof(struct sockaddr_in)) == -1) 
+    {
+	perror("bind");
+    }
+
+    //fcntl(sock, F_SETFL, O_NONBLOCK);
+
+    /*---Make it a "listening socket"---*/
+    if ( listen(sock, 20) != 0 )
+    {
+	perror("socket--listen");
+	exit(errno);
+    }
+
+
 }
 
 Server::~Server()
 {
     sock = 0;
+}
+
+void Server::main_loop()
+{
+
+    char buffer[BUF_SIZE];
+    /*---Forever... ---*/
+    while (1)
+    {	
+    int clientfd;
+    struct sockaddr_in client_addr;
+    socklen_t addrlen=sizeof(client_addr);
+
+    memset(&client_addr, 0, sizeof(struct sockaddr_in));
+    client_addr.sin_family = AF_INET;
+
+    //Endian Conversion
+    std::string locHost = "127.0.0.1";
+    inet_pton(AF_INET, locHost.c_str(), &client_addr.sin_addr);
+    client_addr.sin_port = htons(PORT_NO);
+
+    /*---accept a connection (creating a data pipe)---*/
+    clientfd = accept(sock, (struct sockaddr*)&client_addr, &addrlen);
+    //printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+
+    /*---Echo back anything sent---*/
+    send(clientfd, buffer, recv(clientfd, buffer, MAXBUF, 0), 0);
+
+    /*---Close data connection---*/
+    close(clientfd);
+    }
+    /*
+    int32_t size = -1;
+    int check, c;
+    char buf[BUF_SIZE];
+    
+    std::cout << "In main loop!" << std::endl;
+    while(size < 0)
+    {
+	//std::cout << size << std::endl;
+	size = recvfrom(sock, buf, BUF_SIZE, 0, NULL, NULL);
+    }
+
+    std::cout << "Message Received: " << buf << std::endl;
+
+    std::string strAck = "Got it Vikram!";
+
+    struct sockaddr_in raddr;
+    memset(&raddr, 0, sizeof(struct sockaddr_in));
+
+    raddr.sin_family = AF_INET;
+
+    //convert the ip-address to human readable form 
+    std::string locHost = "127.0.0.1";
+    inet_pton(AF_INET, locHost.c_str() , &raddr.sin_addr);
+    raddr.sin_port = htons(PORT_NO);
+
+    std::cout << "Message about to send." << std::endl;
+    //send the message to its destination
+    c = sendto(sock, strAck.c_str(), strAck.size(), 0, (struct sockaddr*)&raddr, sizeof(raddr));
+
+    if (c != sizeof(strAck)) 
+    {
+	std::cout << "Bad write " << c << " != " << sizeof(strAck) << std::endl;
+    }
+    */
+
 }
 
 void Server::recvCommand()
