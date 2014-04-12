@@ -89,7 +89,7 @@ void Server::recvCommand() {
       memcpy(&strReturn[0], &msgLength, INT_LENGTH);   // Message Length (4)
       strReturn[4] = OP_SET_ACK;                       // OPCODE         (1)
       memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);  // Key Length     (4)
-      memcpy(&strReturn[9], &strKey, strKey.size());  // Key (strKey.size())
+      memcpy(&strReturn[9], &strKey, strKey.size());   // Key (strKey.size())
       memcpy(&strReturn[9 + strKey.size()], &valueLtoSend,
              INT_LENGTH);  // Value Length   (4)
       memcpy(&strReturn[13 + strKey.size()], &strValue,
