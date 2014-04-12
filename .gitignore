@@ -25,3 +25,4 @@
 test.db
 mmap_allocator_test
 memory_map_test
+*.gch
