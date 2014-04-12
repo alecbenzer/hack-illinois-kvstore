@@ -1,22 +1,5 @@
-import socket
-import sys
+from kvstore import do_get, do_set, send_message
 
-HOST, POST = 'localhost', 9999
-data = 'hello'
-
-sock = socket.socket(socket.AD_INT, socket.SOCK_STREAM)
-
-try:
-    #connect to server
-    sock.connect((HOST, PORT))
-    
-    #send message
-    sock.sendall(data)
-
-    recieved = sock.recv(1024)
-
-finally:
-    sock.close()
-
-print "Sent:    {}".format(data)
-print "Received:{}".format(recieved)
+if __name__=="__main__":
+    do_set("myKey", "myVal")
+    do_get("myKey")
