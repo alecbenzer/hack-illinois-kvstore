@@ -67,9 +67,9 @@ Server::~Server()
 
 void Server::run()
 {
-    stt::cout << "==============\n";
+    std::cout << "==============\n";
     std::cout << "Server Running\n";
-    stt::cout << "==============\n";
+    std::cout << "==============\n";
     
     /*---Forever... ---*/
     while (1)
