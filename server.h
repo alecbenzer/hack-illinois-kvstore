@@ -21,7 +21,7 @@ public:
     ~Server();
 
     //Main Loop for testing
-    void main_loop();
+    void run();
 
 private:
     // Receive from TCP Socket
@@ -35,6 +35,9 @@ private:
 
     // Handle Get
     char* get(const char* key, int fdClient);
+
+    // Handle Del
+    char* del(const char* key, int fdClient);
 
     // Send to TCP Socket
     void sendResponse(char* response, int fdClient);
