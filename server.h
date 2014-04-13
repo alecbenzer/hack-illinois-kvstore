@@ -10,7 +10,10 @@
 
 #include <sys/socket.h>
 #include <unordered_map>
+#include <map>
 #include <string>
+#include <algorithm>
+#include "mmap_allocator.h"
 
 class Server {
 public:
@@ -22,6 +25,7 @@ public:
 
     //Main Loop for testing
     void run();
+
 
 private:
     // Parse Message
@@ -42,8 +46,11 @@ private:
     // TCP Socket
     int sock;
 
+    std::unique_ptr<MMapAllocator<std::pair<const std::string, std::string>>> alloc;
+
     // Map of Keys and Values
-    std::unordered_map<std::string, std::string> kvStore;
+    std::map<std::string, std::string, std::less<std::string>, MMapAllocator<std::pair<const std::string, std::string>>> kvStore;
+
 };
 
 #endif

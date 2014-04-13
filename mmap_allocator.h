@@ -1,3 +1,6 @@
+#ifndef _MMAP_ALLOCATOR_H
+#define _MMAP_ALLOCATOR_H
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -103,3 +106,5 @@ template <typename T, typename U>
 inline bool operator!=(const MMapAllocator<T>& a, const MMapAllocator<U>& b) {
   return !(a == b);
 }
+
+#endif

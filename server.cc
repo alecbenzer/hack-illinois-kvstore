@@ -11,6 +11,10 @@
 #include <iostream>
 #include <cstdint>
 #include <string>
+#include <map>
+#include <memory>
+#include "mmap_allocator.h"
+
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -34,7 +38,14 @@
 #define PORT_NO	    9999
 
 
-Server::Server()
+using std::pair;
+using std::string;
+using std::less;
+using std::map;
+
+
+
+Server::Server() : alloc(MMapAllocator<pair<const string, string>>::New("test.db")), kvStore(less<string>(), *alloc)
 {
     //Set up channel infrastructure
     struct  sockaddr_in svaddr;
@@ -189,8 +200,10 @@ char * Server::get(const char * key)
     int size;
     std::string strKey = key;
     std::string strValue;
-    std::unordered_map<std::string, std::string>::const_iterator it =
-        kvStore.find(strKey);
+    //std::unordered_map<std::string, std::string>::const_iterator it =
+    //    kvStore.find(strKey);
+
+    auto it = kvStore.find(strKey);
 
     if (it == kvStore.end())
     {
@@ -238,8 +251,8 @@ char * Server::del(const char * key)
     int size;
     std::string strKey = key;
     std::string strValue;
-    std::unordered_map<std::string, std::string>::const_iterator it =
-        kvStore.find(strKey);
+    //std::unordered_map<std::string, std::string>::const_iterator it =
+    auto it = kvStore.find(strKey);
 
     if (it != kvStore.end())
     {
@@ -268,8 +281,8 @@ char *Server::set(const char * key, const char * value)		// might be a problem c
     int size;
     std::string strKey = std::string(key);
     std::string strValue = std::string(value);
-    std::unordered_map<std::string, std::string>::const_iterator it =
-      kvStore.find(strKey);
+    //std::unordered_map<std::string, std::string>::const_iterator it =
+    auto it = kvStore.find(strKey);
 
     kvStore[strKey] = strValue;  // replace
 
