@@ -1,24 +1,19 @@
 def send_message(msg):
     import socket
     import sys
-    
+
     HOST, PORT = 'localhost', 9999
     data = msg
-
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
         #connect to server
         sock.connect((HOST, PORT))
-        
         #send message
         bytes_sent = sock.send(data)
-
         recieved = sock.recv(1024)
-
     finally:
         sock.close()
-
     recieve_message(recieved)
 
 OP_SET = 0x02
@@ -41,25 +36,25 @@ def recieve_message(msg=None):
             key = struct.unpack("%ds"%keyLength, msg[9:9+keyLength])[0]
             valueLength = int(struct.unpack_from(">i", msg, 9+keyLength)[0])
             val = struct.unpack("%ds"%valueLength, msg[13+keyLength:])[0]
-            print "RECV: GET key={} -> {}".format(key, val)
+            print "'{}'".format(val)
 
         elif OP_CODE == OP_GET_FAIL:
             keyLength = int(struct.unpack_from(">i", msg, 5)[0])
             key = struct.unpack("%ds"%keyLength, msg[9:9+keyLength])[0]
-            print "RECV: GET FAILED for key={}".format(key)
-            
+            print "nil"
+
         elif OP_CODE == OP_SET_ACK:
             keyLength = int(struct.unpack_from(">i", msg, 5)[0])
             key = struct.unpack("%ds"%keyLength, msg[9:9+keyLength])[0]
             valueLength = int(struct.unpack_from(">i", msg, 9+keyLength)[0])
             val = struct.unpack("%ds"%valueLength, msg[13+keyLength:13+keyLength+valueLength])[0]
-            print "RECV: SET key={} -> {}".format(key, val)
-        
+            print "'{}' -> '{}'".format(key, val)
+
         elif OP_CODE == OP_DEL_ACK:
             keyLength = int(struct.unpack_from(">i", msg, 5)[0])
             key = struct.unpack("%ds"%keyLength, msg[9:9+keyLength])[0]
-            print "RECV: DEL key={}".format(key)
-
+            print "'{}' deleted".format(key)
+        
         else:
             print "Unknown OP_CODE: {}".format(OP_CODE)
 
@@ -75,8 +70,6 @@ def do_get(key):
     struct.pack_into("b", msg, 4, OP_GET)
     struct.pack_into("!i", msg, 5, keyLength)
     struct.pack_into("%ds"%len(key), msg, 9, key)
-
-    print "SEND: GET {}".format(key)
     send_message(msg)
 
 def do_set(key, val):
@@ -84,7 +77,7 @@ def do_set(key, val):
     keyLength = len(key)
     valueLength = len(val)
     msgLength = 1+8+keyLength+valueLength
-    
+
     msg = bytearray(4+msgLength)
     struct.pack_into("!i", msg, 0, msgLength)
     struct.pack_into("b", msg, 4, OP_SET)
@@ -92,10 +85,7 @@ def do_set(key, val):
     struct.pack_into("%ds"%len(key), msg, 9, bytes(key))
     struct.pack_into("!i", msg, 9+keyLength, valueLength)
     struct.pack_into("%ds"%len(val), msg, 13+keyLength, bytes(val))
-
-    print "SEND: SET {}->{}".format(key,val)
     send_message(msg)
-
 
 def do_del(key):
     import struct
@@ -106,7 +96,8 @@ def do_del(key):
     struct.pack_into("b", msg, 4, OP_DEL)
     struct.pack_into("!i", msg, 5, keyLength)
     struct.pack_into("%ds"%len(key), msg, 9, key)
-
-    print "SEND: DEL {}".format(key)
     send_message(msg)
 
+def do_getset(key, val):
+    do_get(key)
+    do_set(key, val)

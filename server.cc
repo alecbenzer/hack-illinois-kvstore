@@ -19,15 +19,15 @@
 
 #define INT_LENGTH 4
 
-#define OP_SET 0x02
-#define OP_SET_ACK 0x12
+#define OP_SET              0x02
+#define OP_SET_ACK          0x12
 
-#define OP_GET 0x03
-#define OP_GET_RET 0x13
-#define OP_GET_FAIL 0x23
+#define OP_GET              0x03
+#define OP_GET_RET          0x13
+#define OP_GET_FAIL         0x23
 
-#define OP_DEL 0x04
-#define OP_DEL_ACK 0x14
+#define OP_DEL              0x04
+#define OP_DEL_ACK          0x14
 
 #define BUF_SIZE    256
 #define MAXBUF	    256
@@ -134,13 +134,13 @@ void Server::parse(char * message, int fdClient)
         char *value = (char *)malloc(valueLength * sizeof(char) + 1);
         memcpy(value, &message[9 + keyLength], valueLength * sizeof(char));
         value[valueLength] = 0;  // null terminate the string
-        sendResponse(set((const char*)key, (const char*)value, fdClient), fdClient);
+        sendResponse(set((const char*)key, (const char*)value), fdClient);
 
     }
 
     else if (opcode == OP_GET)
     {
-        std::cout << "Parsed to OP_GET\n";
+        std::cout << "Parsed to OP_GET";
         // Read Keylength
         uint32_t keyLength;
         keyLength = *((uint32_t *)&message[1]);
@@ -153,12 +153,12 @@ void Server::parse(char * message, int fdClient)
         memcpy(key, &message[5], keyLength * sizeof(char));
         key[keyLength] = 0;
 
-        sendResponse(get((const char*)key, fdClient), fdClient);
+        sendResponse(get((const char*)key), fdClient);
     }
     
     else if (opcode == OP_DEL)
     {
-        std::cout << "Parsed to OP_DEL\n";
+        std::cout << "Parsed to OP_DEL";
         // Read Keylength
         uint32_t keyLength;
         keyLength = *((uint32_t *)&message[1]);
@@ -171,7 +171,7 @@ void Server::parse(char * message, int fdClient)
         memcpy(key, &message[5], keyLength * sizeof(char));
         key[keyLength] = 0;
 
-        sendResponse(del((const char*)key, fdClient), fdClient);
+        sendResponse(del((const char*)key), fdClient);
     }
 
     else
@@ -180,7 +180,7 @@ void Server::parse(char * message, int fdClient)
     }
 }
 
-char * Server::get(const char * key, int fdClient)
+char * Server::get(const char * key)
 {
     char *strReturn;
     int size;
@@ -229,7 +229,7 @@ char * Server::get(const char * key, int fdClient)
     return strReturn;
 }
 
-char * Server::del(const char * key, int fdClient)
+char * Server::del(const char * key)
 {
     char *strReturn;
     int size;
@@ -238,7 +238,7 @@ char * Server::del(const char * key, int fdClient)
     std::unordered_map<std::string, std::string>::const_iterator it =
         kvStore.find(strKey);
 
-    if (it == kvStore.end())
+    if (it != kvStore.end())
     {
         kvStore.erase(strKey);
     }
@@ -257,8 +257,7 @@ char * Server::del(const char * key, int fdClient)
     return strReturn;
 }
 
-
-char *Server::set(const char * key, const char * value, int fdClient)		// might be a problem converting to
+char *Server::set(const char * key, const char * value)		// might be a problem converting to
 												// std::strings when char* isn't null
 												// terminated?
 {
@@ -293,12 +292,8 @@ char *Server::set(const char * key, const char * value, int fdClient)		// might 
     return strReturn;
 }
 
-void Server::sendResponse(char * response, int fdClient) {
-	
-	std::cout << response << std::endl;
-	
+void Server::sendResponse(char * response, int fdClient)
+{	
 	uint32_t msgLength = ntohl(*((uint32_t *)&response[0]));
-	send(fdClient, response, msgLength+4, 0);
-	
-	
+	send(fdClient, response, msgLength+4, 0);	
 }

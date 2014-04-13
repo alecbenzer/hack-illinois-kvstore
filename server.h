@@ -24,20 +24,17 @@ public:
     void run();
 
 private:
-    // Receive from TCP Socket
-    void recvCommand();
-
     // Parse Message
     void parse(char* message, int fdClient);
 
     // Handle Set
-    char* set(const char* key, const char* value, int fdClient);
+    char* set(const char* key, const char* value);
 
     // Handle Get
-    char* get(const char* key, int fdClient);
+    char* get(const char* key);
 
     // Handle Del
-    char* del(const char* key, int fdClient);
+    char* del(const char* key);
 
     // Send to TCP Socket
     void sendResponse(char* response, int fdClient);
@@ -47,7 +44,6 @@ private:
 
     // Map of Keys and Values
     std::unordered_map<std::string, std::string> kvStore;
-
 };
 
 #endif
