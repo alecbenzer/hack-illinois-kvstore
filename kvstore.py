@@ -1,7 +1,7 @@
 def send_message(msg):
     import socket
     import sys
-
+    
     HOST, PORT = 'localhost', 9999
     data = msg
 
@@ -30,29 +30,25 @@ OP_GET_FAIL = 0x23
 def recieve_message(msg=None):
     import struct
     if msg:
-        msgLength = struct.unpack(">i", msg[:4])
+        msgLength = struct.unpack(">i", msg[:4])[0]
         OP_CODE = int(struct.unpack("b", msg[4])[0])
-
         if OP_CODE == OP_GET_RET:
-            keyLength = int(struct.unpack_from("=i", msg, 5)[0])
-            key = struct.unpack("s", msg[9:9+keyLength])[0]
-            valueLength = int(struct.unpack_from("=i", msg, 9+keyLength)[0])
-            val = struct.unpack("s", msg[13+keyLength:])[0]
-
+            keyLength = int(struct.unpack_from(">i", msg, 5)[0])
+            key = struct.unpack("%ds"%keyLength, msg[9:9+keyLength])[0]
+            valueLength = int(struct.unpack_from(">i", msg, 9+keyLength)[0])
+            val = struct.unpack("%ds"%valueLength, msg[13+keyLength:])[0]
             print "Recieved: GET key={} -> {}".format(key, val)
 
         elif OP_CODE == OP_GET_FAIL:
-            keyLength = int(struct.unpack_from("=i", msg, 5)[0])
-            key = struct.unpack("s", msg[9:9+keyLength])[0]
+            keyLength = int(struct.unpack_from(">i", msg, 5)[0])
+            key = struct.unpack("%ds"%keyLength, msg[9:9+keyLength])[0]
             print "Recieved: GET FAILED for key={}".format(key)
             
         elif OP_CODE == OP_SET_ACK:
-            keyLength = int(struct.unpack_from("=i", msg, 5)[0])
-            print keyLength
-            print len(msg[9:9+keyLength])
-            key = struct.unpack("s", msg[9:9+keyLength])[0]
-            valueLength = int(struct.unpack_from("=i", msg, 9+keyLength)[0])
-            val = struct.unpack("s", msg[13+keyLength:])[0]
+            keyLength = int(struct.unpack_from(">i", msg, 5)[0])
+            key = struct.unpack("%ds"%keyLength, msg[9:9+keyLength])[0]
+            valueLength = int(struct.unpack_from(">i", msg, 9+keyLength)[0])
+            val = struct.unpack("%ds"%valueLength, msg[13+keyLength:13+keyLength+valueLength])[0]
             print "ACK: SET key={} -> {}".format(key, val)
 
         else:
@@ -60,7 +56,6 @@ def recieve_message(msg=None):
             
     else:
         print "fail"
-
 
 def do_get(key):
     import struct
@@ -70,7 +65,7 @@ def do_get(key):
     struct.pack_into("!i", msg, 0, msgLength)
     struct.pack_into("b", msg, 4, OP_GET)
     struct.pack_into("!i", msg, 5, keyLength)
-    struct.pack_into("s", msg, 9, key)
+    struct.pack_into("%ds"%len(key), msg, 9, key)
 
     print "sending message for get {}".format(key)
 
@@ -86,9 +81,8 @@ def do_set(key, val):
     struct.pack_into("!i", msg, 0, msgLength)
     struct.pack_into("b", msg, 4, OP_SET)
     struct.pack_into("!i", msg, 5, keyLength)
-    struct.pack_into("s", msg, 9, key)
+    struct.pack_into("%ds"%len(key), msg, 9, bytes(key))
     struct.pack_into("!i", msg, 9+keyLength, valueLength)
-    struct.pack_into("s", msg, 13+keyLength, val)
-    
+    struct.pack_into("%ds"%len(val), msg, 13+keyLength, bytes(val))
     print "sending message for set {}->{}".format(key,val)
     send_message(msg)

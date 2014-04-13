@@ -91,8 +91,8 @@ void Server::main_loop()
 	int r;
 	
 	r = recv(clientfd, &count, INT_LENGTH, 0);
-    //std::cout << r << std::endl;
 	count = ntohl(count);
+    //std::cout << "r: " << r << ", count: " << count << std::endl;
 	if(r >= 0)
 	{
 		char * buf = (char *) malloc(count*sizeof(char));
@@ -101,8 +101,6 @@ void Server::main_loop()
 		if(r != count) std::cout << "Error: Invalid Read Length." << std::endl;
 		else
         {
-            std::cout << "R VAL: " << r << std::endl;
-            std::cout << "BUF: " << buf[1] << buf[2] << std::endl;
             parse(buf,clientfd);
         }
 	}
@@ -111,28 +109,7 @@ void Server::main_loop()
     /*---Close data connection---*/
     close(clientfd);
     }
-    
 
-}
-
-void Server::recvCommand()
-{
-    uint32_t count;
-	int r;
-	
-	r = read(sock, &count, INT_LENGTH);
-	count = ntohl(count);
-	if(r >= 0)
-	{
-		char * buf = (char *) malloc(count*sizeof(char));
-		r = read(sock, buf, count);
-		if(r != count) std::cout << "Error: Invalid Read Length." << std::endl;
-		else
-        {
-            std::cout << "R VAL: " << r << std::endl;
-            parse(buf,0);
-        }
-	}
 }
 
 void Server::parse(char * message, int fdClient)
@@ -193,7 +170,7 @@ char * Server::get(const char * key, int fdClient) {
 	strReturn[4] = OP_GET_FAIL;
 	keyLtoSend = htonl(keyLtoSend);
 	memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);
-	memcpy(&strReturn[9], &strKey, strKey.size());
+	memcpy(&strReturn[9], key, strKey.size());
 	uint32_t msgLength = 5 + strKey.size();
 	msgLength = htonl(msgLength);
 	memcpy(&strReturn[0], &msgLength, INT_LENGTH);
@@ -211,9 +188,9 @@ char * Server::get(const char * key, int fdClient) {
 	keyLtoSend = htonl(keyLtoSend);
 	valueLtoSend = htonl(valueLtoSend);
 	memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);
-	memcpy(&strReturn[9], &strKey, strKey.size());
+	memcpy(&strReturn[9], key, strKey.size());
 	memcpy(&strReturn[9 + strKey.size()], &valueLtoSend, INT_LENGTH);
-	memcpy(&strReturn[13 + strKey.size()], &strValue, strValue.size());
+	memcpy(&strReturn[13 + strKey.size()], strValue.c_str(), strValue.size());
 	uint32_t msgLength = 9 + strKey.size() + strValue.size();
 	msgLength = htonl(msgLength);
 	memcpy(&strReturn[0], &msgLength, INT_LENGTH);
@@ -241,20 +218,17 @@ char *Server::set(const char * key, const char * value, int fdClient)		// might 
 
   strReturn = (char *)malloc((4 + msgLength) * sizeof(char));
 
-  std::cout << strKey << std::endl;
-
   msgLength = htonl(msgLength);
   keyLtoSend = htonl(keyLtoSend);
   valueLtoSend = htonl(valueLtoSend);
-
   // Build strReturn
   memcpy(&strReturn[0], &msgLength, INT_LENGTH);   // Message Length (4)
   strReturn[4] = OP_SET_ACK;                       // OPCODE         (1)
   memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);  // Key Length     (4)
-  memcpy(&strReturn[9], &strKey, strKey.size());   // Key (strKey.size())
+  memcpy(&strReturn[9], key, strKey.size());   // Key (strKey.size())
   memcpy(&strReturn[9 + strKey.size()], &valueLtoSend,
 		 INT_LENGTH);  // Value Length   (4)
-  memcpy(&strReturn[13 + strKey.size()], &strValue,
+  memcpy(&strReturn[13 + strKey.size()], value,
 		 strValue.size());  // Value          (strValue.size())
 
   return strReturn;
@@ -269,42 +243,3 @@ void Server::sendResponse(char * response, int fdClient) {
 	
 	
 }
-
-
-
-
-/*
- int32_t size = -1;
- int check, c;
- char buf[BUF_SIZE];
- 
- std::cout << "In main loop!" << std::endl;
- while(size < 0)
- {
- //std::cout << size << std::endl;
- size = recvfrom(sock, buf, BUF_SIZE, 0, NULL, NULL);
- }
- 
- std::cout << "Message Received: " << buf << std::endl;
- 
- std::string strAck = "Got it Vikram!";
- 
- struct sockaddr_in raddr;
- memset(&raddr, 0, sizeof(struct sockaddr_in));
- 
- raddr.sin_family = AF_INET;
- 
- //convert the ip-address to human readable form
- std::string locHost = "127.0.0.1";
- inet_pton(AF_INET, locHost.c_str() , &raddr.sin_addr);
- raddr.sin_port = htons(PORT_NO);
- 
- std::cout << "Message about to send." << std::endl;
- //send the message to its destination
- c = sendto(sock, strAck.c_str(), strAck.size(), 0, (struct sockaddr*)&raddr, sizeof(raddr));
- 
- if (c != sizeof(strAck))
- {
- std::cout << "Bad write " << c << " != " << sizeof(strAck) << std::endl;
- }
- */
