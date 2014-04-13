@@ -67,7 +67,10 @@ Server::~Server()
 
 void Server::run()
 {
+    stt::cout << "==============\n";
     std::cout << "Server Running\n";
+    stt::cout << "==============\n";
+    
     /*---Forever... ---*/
     while (1)
     {
@@ -99,7 +102,7 @@ void Server::run()
             char * buf = (char *) malloc(count*sizeof(char));
             r = recv(clientfd, buf, count, 0);
             //std::cout << count << r << std::endl;
-            if(r != count) std::cout << "Error: Invalid Read Length." << std::endl;
+            if(r != count) std::cout << "Error: Invalid Read Length\n";
             else
             {
                 parse(buf,clientfd);
@@ -140,7 +143,7 @@ void Server::parse(char * message, int fdClient)
 
     else if (opcode == OP_GET)
     {
-        std::cout << "Parsed to OP_GET";
+        std::cout << "Parsed to OP_GET\n";
         // Read Keylength
         uint32_t keyLength;
         keyLength = *((uint32_t *)&message[1]);
@@ -158,7 +161,7 @@ void Server::parse(char * message, int fdClient)
     
     else if (opcode == OP_DEL)
     {
-        std::cout << "Parsed to OP_DEL";
+        std::cout << "Parsed to OP_DEL\n";
         // Read Keylength
         uint32_t keyLength;
         keyLength = *((uint32_t *)&message[1]);
@@ -176,7 +179,7 @@ void Server::parse(char * message, int fdClient)
 
     else
     {
-        std::cout << "Invalid Opcode" << std::endl;
+        std::cout << "Invalid Opcode\n";
     }
 }
 
