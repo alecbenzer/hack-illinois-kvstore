@@ -24,6 +24,12 @@ class MMapAllocator {
   using size_type = std::size_t;
   using difference_type = off_t;
 
+  using SizeMap = std::map<void*, size_type>;
+  using FreeMap = std::map<size_type, std::vector<void*>>;
+
+  template <class U>
+  friend class MMapAllocator;
+
   template <class U>
   struct rebind {
     typedef MMapAllocator<U> other;
@@ -35,18 +41,27 @@ class MMapAllocator {
       return NULL;
     }
 
-    return new MMapAllocator(fd);
+    return new MMapAllocator(fd, new SizeMap(), new FreeMap());
   }
 
   template <class U>
   MMapAllocator(const MMapAllocator<U>& other)
-      : fd_(other.fd()) {}
+      : fd_(other.fd_),
+        sizes_(other.sizes_),
+        free_blocks_(other.free_blocks_) {}
 
   T* allocate(size_t n) {
     // round up to multiple of page size
     size_t to_alloc = n * sizeof(T);
     if (to_alloc % page_size != 0) {
       to_alloc = ((to_alloc / page_size) + 1) * page_size;
+    }
+
+    auto& vec = (*free_blocks_)[to_alloc];
+    if (!vec.empty()) {
+      T* addr = static_cast<T*>(vec.back());
+      vec.pop_back();
+      return addr;
     }
 
     off_t previous_end = lseek(fd_, 0, SEEK_END);
@@ -58,12 +73,16 @@ class MMapAllocator {
     if (write(fd_, "", 1) != 1) {
       return NULL;
     }
-
-    return static_cast<T*>(mmap(0, to_alloc, PROT_READ | PROT_WRITE, MAP_SHARED,
-                                fd_, previous_end));
+    T* addr = static_cast<T*>(mmap(0, to_alloc, PROT_READ | PROT_WRITE,
+                                   MAP_SHARED, fd_, previous_end));
+    (*sizes_)[addr] = to_alloc;
+    return addr;
   }
 
-  void deallocate(T* p, size_t n) {}
+  void deallocate(T* p, size_t n) {
+    auto to_free = (*sizes_)[(void*)p];
+    (*free_blocks_)[to_free].push_back((void*)p);
+  }
 
   void construct(pointer p, const_reference val) { new ((void*)p) T(val); }
 
@@ -79,12 +98,16 @@ class MMapAllocator {
     p->~U();
   }
 
-  int fd() const { return fd_; }
-
  private:
-  MMapAllocator(int fd) : fd_(fd) {}
+  MMapAllocator(int fd, SizeMap* sizes, FreeMap* free_blocks)
+      : fd_(fd), sizes_(sizes), free_blocks_(free_blocks) {}
 
   int fd_;
+  // a map from allocated addresses to the "actual" sizes of their allocations
+  // (as opposed to just what was requested, as requests are rounded up the
+  // nearest page size multiple)
+  std::shared_ptr<SizeMap> sizes_;
+  std::shared_ptr<FreeMap> free_blocks_;
 };
 
 // apparently we need this shit because templates are the devil
