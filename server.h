@@ -10,7 +10,10 @@
 
 #include <sys/socket.h>
 #include <unordered_map>
+#include <map>
 #include <string>
+#include <algorithm>
+#include "mmap_allocator.h"
 
 class Server {
  public:
@@ -20,27 +23,33 @@ class Server {
   // Destructor
   ~Server();
 
-  // Main Loop for testing
-  void main_loop();
+    //Main Loop for testing
+    void run();
 
- private:
-  // Receive from TCP Socket
-  void recvCommand();
 
-  // Parse Message
-  void parse(char* message);
+private:
+    // Parse Message
+    void parse(char* message, int fdClient);
 
-  // Handle Set
-  char* set(char* key, char* value);
+    // Handle Set
+    char* set(const char* key, const char* value);
 
-  // Handle Get
-  char* get(char* key);
+    // Handle Get
+    char* get(const char* key);
 
-  // Send to TCP Socket
-  void sendResponse(char* response);
+    // Handle Del
+    char* del(const char* key);
 
-  // TCP Socket
-  int sock;
+    // Send to TCP Socket
+    void sendResponse(char* response, int fdClient);
+
+    // TCP Socket
+    int sock;
+
+    std::unique_ptr<MMapAllocator<std::pair<const std::string, std::string>>> alloc;
+
+    // Map of Keys and Values
+    std::map<std::string, std::string, std::less<std::string>, MMapAllocator<std::pair<const std::string, std::string>>> kvStore;
 
   // Map of Keys and Values
   std::unordered_map<std::string, std::string> kvStore;

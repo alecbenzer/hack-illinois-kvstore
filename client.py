@@ -1,23 +1,50 @@
-import socket
-import sys
+import kvstore as kv
+import cmd
 
-HOST, PORT = 'localhost', 9999
-data = 'Sai'
+def parse(arg):
+    return tuple(map(str, arg.split()))
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-rec="foo"
-try:
-    #connect to server
-    sock.connect((HOST, PORT))
-	    
-    #send message
-    sock.send(data)
+class CLI(cmd.Cmd):
+    def __init__(self):
+        cmd.Cmd.__init__(self)
+        self.prompt = '> '
 
-    rec = sock.recv(4096)
+    def do_del(self, key):
+        kv.do_del(key)
 
-finally:
-    sock.close()
+    def help_del(self):
+        print "syntax: del [key]",
+        print "-- deletes the entry for [key] from the database if it exists"
 
-    print "Sent:    {}".format(data)
-    print "Received:{}".format(rec)
+    def do_get(self, key):
+        kv.do_get(key)
 
+    def help_get(self):
+        print "syntax: get [key]",
+        print "-- gets the value associated with [key] from the database if it exists, nil if it doesnt."
+
+    def do_set(self, arg):
+        kv.do_set(*parse(arg))
+
+    def help_set(self):
+        print "syntax: set [key] [val]",
+        print "-- maps [key] to [val] in the database. Will overwrite existing value if [key] is already mapped to something."
+
+    def do_getset(self, arg):
+        kv.do_getset(*parse(arg))
+
+    def help_getset(self):
+        print "syntax: getset [key] [val]",
+        print "-- will get the value associated with [key] and then replace it with [val]"
+
+    def do_quit(self, arg):
+        import sys
+        sys.exit(1)
+
+    def help_quit(self):
+        print "syntax: quit",
+        print "-- terminates the application"
+
+if __name__=="__main__":
+    cli = CLI()
+    cli.cmdloop()

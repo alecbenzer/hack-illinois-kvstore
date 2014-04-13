@@ -3,6 +3,6 @@
 int main(int argc, char* argv[]) {
   Server test;
 
-  test.main_loop();
-  return 0;
+    test.run();
+    return 0;
 }
