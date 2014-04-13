@@ -8,6 +8,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+const int page_size = sysconf(_SC_PAGE_SIZE);
+
 template <typename T>
 class MMapAllocator {
  public:
@@ -24,42 +26,38 @@ class MMapAllocator {
     typedef MMapAllocator<U> other;
   };
 
-  static MMapAllocator* New(std::string dirname) {
-    struct stat st;
-    if (stat(dirname.c_str(), &st) == 0) {
-      // file already exists, make sure it's a directory
-      if (!S_ISDIR(st.st_mode)) {
-        return NULL;
-      }
-    } else {
-      // doesn't exist
-      return NULL;
-    }
-
-    return new MMapAllocator(dirname);
-  }
-
-  T* allocate(size_t n) {
-    std::string filename = dirname_ + "/" + std::to_string(last_used_);
-    last_used_ += 1;
-
+  static MMapAllocator* New(std::string filename) {
     int fd = open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, (mode_t)0777);
     if (fd == -1) {
       return NULL;
     }
 
-    size_t bytes = n * sizeof(T);
+    return new MMapAllocator(fd);
+  }
 
-    if (lseek(fd, bytes - 1, SEEK_END) == -1) {
+  template <class U>
+  MMapAllocator(const MMapAllocator<U>& other)
+      : fd_(other.fd()) {}
+
+  T* allocate(size_t n) {
+    // round up to multiple of page size
+    size_t to_alloc = n * sizeof(T);
+    if (to_alloc % page_size != 0) {
+      to_alloc = ((to_alloc / page_size) + 1) * page_size;
+    }
+
+    off_t previous_end = lseek(fd_, 0, SEEK_END);
+
+    if (lseek(fd_, to_alloc - 1, SEEK_END) == -1) {
       return NULL;
     }
 
-    if (write(fd, "", 1) != 1) {
+    if (write(fd_, "", 1) != 1) {
       return NULL;
     }
 
-    return static_cast<T*>(
-        mmap(0, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+    return static_cast<T*>(mmap(0, to_alloc, PROT_READ | PROT_WRITE, MAP_SHARED,
+                                fd_, previous_end));
   }
 
   void deallocate(T* p, size_t n) {}
@@ -78,25 +76,19 @@ class MMapAllocator {
     p->~U();
   }
 
-  template <class U>
-  MMapAllocator(const MMapAllocator<U>& other)
-      : dirname_(other.dirname()), last_used_(other.last_used()) {}
-
-  std::string dirname() const { return dirname_; }
-  int last_used() const { return last_used_; }
+  int fd() const { return fd_; }
 
  private:
-  MMapAllocator(std::string dirname) : dirname_(dirname), last_used_(0) {}
+  MMapAllocator(int fd) : fd_(fd) {}
 
-  std::string dirname_;
-  int last_used_;
+  int fd_;
 };
 
 // apparently we need this shit because templates are the devil
 // see http://stackoverflow.com/a/21083096/598940
 template <typename T, typename U>
-inline bool operator==(const MMapAllocator<T>&, const MMapAllocator<U>&) {
-  return true;
+inline bool operator==(const MMapAllocator<T>& a, const MMapAllocator<U>& b) {
+  return a.fd() == b.fd();
 }
 
 template <typename T, typename U>
