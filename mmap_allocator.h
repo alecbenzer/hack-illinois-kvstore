@@ -110,8 +110,6 @@ class MMapAllocator {
   std::shared_ptr<FreeMap> free_blocks_;
 };
 
-// apparently we need this shit because templates are the devil
-// see http://stackoverflow.com/a/21083096/598940
 template <typename T, typename U>
 inline bool operator==(const MMapAllocator<T>& a, const MMapAllocator<U>& b) {
   return a.fd() == b.fd();
