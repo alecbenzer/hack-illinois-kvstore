@@ -2,7 +2,7 @@
  * @file server.h
  * Header File for Server Class
  * @date April 2014
- * @author Sai Koppula
+ * @author Sai Koppula, Vikram Jayashankar
  */
 
 #ifndef _SERVER_H
@@ -14,6 +14,7 @@
 #include <string>
 #include <algorithm>
 #include "mmap_allocator.h"
+#include "elements.h"
 
 class Server {
  public:
@@ -31,7 +32,7 @@ class Server {
   void parse(char* message, int fdClient);
 
   // Handle Set
-  char* set(const char* key, const char* value);
+  char* set(const char* key, E_String* value);
 
   // Handle Get
   char* get(const char* key);
@@ -44,16 +45,9 @@ class Server {
 
   // TCP Socket
   int sock;
+    
+  mm::unordered_map<std::string, Element*> kvStore;
 
-  std::unique_ptr<MMapAllocator<std::pair<const std::string, std::string>>>
-      alloc;
-
-  // Map of Keys and Values
-  std::map<std::string, std::string, std::less<std::string>,
-           MMapAllocator<std::pair<const std::string, std::string>>> kvStore;
-
-  // Map of Keys and Values
-  std::unordered_map<std::string, std::string> kvStore;
 };
 
 #endif

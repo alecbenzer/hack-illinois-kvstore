@@ -14,6 +14,7 @@
 #include <map>
 #include <memory>
 #include "mmap_allocator.h"
+#include "elements.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -42,8 +43,7 @@ using std::less;
 using std::map;
 
 Server::Server()
-    : alloc(MMapAllocator<pair<const string, string>>::New("test.db")),
-      kvStore(less<string>(), *alloc) {
+{
   // Set up channel infrastructure
   struct sockaddr_in svaddr;
   memset(&svaddr, 0, sizeof(struct sockaddr_in));
@@ -133,10 +133,12 @@ void Server::parse(char *message, int fdClient) {
     uint32_t valueLength = ntohl(*((uint32_t *)&message[5 + keyLength]));
 
     // Get Value
-    char *value = (char *)malloc(valueLength * sizeof(char) + 1);
+    char* value = (char *)malloc(valueLength * sizeof(char) + 1);
     memcpy(value, &message[9 + keyLength], valueLength * sizeof(char));
     value[valueLength] = 0;  // null terminate the string
-    sendResponse(set((const char *)key, (const char *)value), fdClient);
+
+    E_String* val = new E_String(value);
+    sendResponse(set((const char *)key, val), fdClient);
 
   } else if (opcode == OP_GET) {
     std::cout << "Parsed to OP_GET\n";
@@ -177,9 +179,8 @@ char *Server::get(const char *key) {
   char *strReturn;
   int size;
   std::string strKey = key;
+  E_String* value;
   std::string strValue;
-  // std::unordered_map<std::string, std::string>::const_iterator it =
-  //    kvStore.find(strKey);
 
   auto it = kvStore.find(strKey);
 
@@ -199,7 +200,8 @@ char *Server::get(const char *key) {
     // Construct Successful Get Message
     uint32_t keyLtoSend = strKey.size();
     uint32_t valueLtoSend;
-    strValue = kvStore[key];
+    value = (E_String*)kvStore[key];
+    strValue = value->c_str();
     valueLtoSend = strValue.size();
     strReturn = (char *)malloc(
         (13 + strKey.size() + strValue.size()) * sizeof(char) + 1);
@@ -224,8 +226,7 @@ char *Server::del(const char *key) {
   char *strReturn;
   int size;
   std::string strKey = key;
-  std::string strValue;
-  // std::unordered_map<std::string, std::string>::const_iterator it =
+  
   auto it = kvStore.find(strKey);
 
   if (it != kvStore.end()) {
@@ -241,28 +242,27 @@ char *Server::del(const char *key) {
   uint32_t msgLength = 5 + strKey.size();
   msgLength = htonl(msgLength);
   memcpy(&strReturn[0], &msgLength, INT_LENGTH);
-  strReturn[13 + strKey.size()] = 0;  // null terminate
+  strReturn[13 + strKey.size()] = 0; 
 
   return strReturn;
 }
 
-char *Server::set(const char *key,
-                  const char *value)  // might be a problem converting to
+char *Server::set(const char *key, E_String* value)  // might be a problem converting to
                                       // std::strings when char* isn't null
                                       // terminated?
 {
   char *strReturn;
   int size;
   std::string strKey = std::string(key);
-  std::string strValue = std::string(value);
-  // std::unordered_map<std::string, std::string>::const_iterator it =
+  
+  
   auto it = kvStore.find(strKey);
 
-  kvStore[strKey] = strValue;  // replace
+  kvStore[strKey] = value;  // replace
 
-  uint32_t msgLength = 9 + strKey.size() + strValue.size();
+  uint32_t msgLength = 9 + strKey.size() + value->size();
   uint32_t keyLtoSend = strKey.size();
-  uint32_t valueLtoSend = strValue.size();
+  uint32_t valueLtoSend = value->size();
 
   strReturn = (char *)malloc((4 + msgLength) * sizeof(char));
 
@@ -270,14 +270,14 @@ char *Server::set(const char *key,
   keyLtoSend = htonl(keyLtoSend);
   valueLtoSend = htonl(valueLtoSend);
   // Build strReturn
-  memcpy(&strReturn[0], &msgLength, INT_LENGTH);   // Message Length (4)
-  strReturn[4] = OP_SET_ACK;                       // OPCODE         (1)
-  memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);  // Key Length     (4)
-  memcpy(&strReturn[9], key, strKey.size());       // Key (strKey.size())
+  memcpy(&strReturn[0], &msgLength, INT_LENGTH);
+  strReturn[4] = OP_SET_ACK;                     
+  memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH); 
+  memcpy(&strReturn[9], key, strKey.size());       
   memcpy(&strReturn[9 + strKey.size()], &valueLtoSend,
-         INT_LENGTH);  // Value Length   (4)
-  memcpy(&strReturn[13 + strKey.size()], value,
-         strValue.size());  // Value          (strValue.size())
+         INT_LENGTH);  
+  memcpy(&strReturn[13 + strKey.size()], value->c_str(),
+         value->size());
 
   return strReturn;
 }

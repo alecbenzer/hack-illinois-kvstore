@@ -10,11 +10,19 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <map>
+#include <unordered_map>
 
-const int page_size = sysconf(_SC_PAGE_SIZE);
+namespace mm {
+
+const int kPageSize = sysconf(_SC_PAGE_SIZE);
+
+namespace {
+void* default_allocator;
+};
 
 template <typename T>
-class MMapAllocator {
+class Allocator {
  public:
   using value_type = T;
   using pointer = T*;
@@ -28,24 +36,30 @@ class MMapAllocator {
   using FreeMap = std::map<size_type, std::vector<void*>>;
 
   template <class U>
-  friend class MMapAllocator;
+  friend class Allocator;
 
   template <class U>
   struct rebind {
-    typedef MMapAllocator<U> other;
+    typedef Allocator<U> other;
   };
 
-  static MMapAllocator* New(std::string filename) {
+  static Allocator* New(std::string filename) {
     int fd = open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, (mode_t)0777);
     if (fd == -1) {
       return NULL;
     }
 
-    return new MMapAllocator(fd, new SizeMap(), new FreeMap());
+    return new Allocator(fd, new SizeMap(), new FreeMap());
+  }
+
+  Allocator()
+      : fd_(static_cast<Allocator*>(default_allocator)->fd_),
+        sizes_(static_cast<Allocator*>(default_allocator)->sizes_),
+        free_blocks_(static_cast<Allocator*>(default_allocator)->free_blocks_) {
   }
 
   template <class U>
-  MMapAllocator(const MMapAllocator<U>& other)
+  Allocator(const Allocator<U>& other)
       : fd_(other.fd_),
         sizes_(other.sizes_),
         free_blocks_(other.free_blocks_) {}
@@ -53,8 +67,8 @@ class MMapAllocator {
   T* allocate(size_t n) {
     // round up to multiple of page size
     size_t to_alloc = n * sizeof(T);
-    if (to_alloc % page_size != 0) {
-      to_alloc = ((to_alloc / page_size) + 1) * page_size;
+    if (to_alloc % kPageSize != 0) {
+      to_alloc = ((to_alloc / kPageSize) + 1) * kPageSize;
     }
 
     auto& vec = (*free_blocks_)[to_alloc];
@@ -99,7 +113,7 @@ class MMapAllocator {
   }
 
  private:
-  MMapAllocator(int fd, SizeMap* sizes, FreeMap* free_blocks)
+  Allocator(int fd, SizeMap* sizes, FreeMap* free_blocks)
       : fd_(fd), sizes_(sizes), free_blocks_(free_blocks) {}
 
   int fd_;
@@ -111,13 +125,34 @@ class MMapAllocator {
 };
 
 template <typename T, typename U>
-inline bool operator==(const MMapAllocator<T>& a, const MMapAllocator<U>& b) {
+inline bool operator==(const Allocator<T>& a, const Allocator<U>& b) {
   return a.fd() == b.fd();
 }
 
 template <typename T, typename U>
-inline bool operator!=(const MMapAllocator<T>& a, const MMapAllocator<U>& b) {
+inline bool operator!=(const Allocator<T>& a, const Allocator<U>& b) {
   return !(a == b);
 }
+
+void SetDefault(std::string filename);
+
+void FreeDefault();
+
+// Convenience typedefs of STL types
+template <typename T>
+using vector = std::vector<T, Allocator<T>>;
+
+template <class Key, class T, class Compare = std::less<Key>>
+using map = std::map<Key, T, Compare, Allocator<std::pair<const Key, T>>>;
+
+template<class T, class Compare = std::less<T>>
+using set = std::set<T, Compare, Allocator<T>>;
+
+template <class Key, class T, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>>
+using unordered_map = std::unordered_map<Key, T, Hash, KeyEqual,
+                                         Allocator<std::pair<const Key, T>>>;
+
+};  // namespace mm
 
 #endif

@@ -15,11 +15,17 @@ mmap_allocator_test.o: mmap_allocator_test.cc mmap_allocator.h
 server.o: server.cc
 	clang++ -std=c++11 -stdlib=libc++ -c server.cc server.h
 
+mmap_allocator.o: mmap_allocator.h mmap_allocator.cc
+	clang++ -std=c++11 -stdlib=libc++ -c  mmap_allocator.cc mmap_allocator.h
+
 main.o: main.cc
 	clang++ -std=c++11 -stdlib=libc++ -c main.cc
 
-server: server.o main.o
-	clang++ -std=c++11 server.o main.o -o server
+elements.o: elements.cc
+	clang++ -std=c++11 -stdlib=libc++ -c elements.cc elements.h
+
+server: server.o main.o elements.o mmap_allocator.o
+	clang++ -std=c++11 server.o main.o elements.o mmap_allocator.o -o server
 
 clean:
 	-rm *.o
