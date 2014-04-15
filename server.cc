@@ -44,6 +44,7 @@ using std::map;
 
 Server::Server()
 {
+  std::cout << "constructing\n";
   // Set up channel infrastructure
   struct sockaddr_in svaddr;
   memset(&svaddr, 0, sizeof(struct sockaddr_in));
@@ -65,6 +66,8 @@ Server::Server()
     perror("socket--listen");
     exit(errno);
   }
+
+  std::cout << "done constructing\n";
 }
 
 Server::~Server() { sock = 0; }
