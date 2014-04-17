@@ -1,36 +1,21 @@
 #include <map>
 #include <unordered_map>
-#include <memory>
 #include <gtest/gtest.h>
 #include "mmap_allocator.h"
 
-using std::equal_to;
-using std::hash;
-using std::less;
-using std::map;
-using std::pair;
 using std::string;
 using std::to_string;
-using std::unordered_map;
-using std::unique_ptr;
 
-class MMapAllocatorTest : public testing::Test {
+namespace mm {
+
+class AllocatorTest : public testing::Test {
  protected:
-  template <class T>
-  unique_ptr<MMapAllocator<T>> make_allocator() {
-    return unique_ptr<MMapAllocator<T>>(MMapAllocator<T>::New("test.db"));
-  }
-
-  template <class T>
-  std::vector<T, MMapAllocator<T>> make_vector(MMapAllocator<T>* alloc) {
-    return std::vector<T, MMapAllocator<T>>(*alloc);
-  }
+  void SetUp() { SetDefault("test.db"); }
+  void TearDown() { FreeDefault(); }
 };
 
-TEST_F(MMapAllocatorTest, VectorInt) {
-  auto alloc = make_allocator<int>();
-  ASSERT_FALSE(alloc.get() == NULL);
-  auto vec = make_vector<int>(alloc.get());
+TEST_F(AllocatorTest, VectorInt) {
+  vector<int> vec;
 
   for (int i = 0; i < 10; ++i) {
     vec.push_back(i);
@@ -43,10 +28,8 @@ TEST_F(MMapAllocatorTest, VectorInt) {
   }
 }
 
-TEST_F(MMapAllocatorTest, VectorIntInitialized) {
-  auto alloc = make_allocator<int>();
-  ASSERT_FALSE(alloc.get() == NULL);
-  std::vector<int, MMapAllocator<int>> vec({4, 42, 24, 7}, *alloc);
+TEST_F(AllocatorTest, VectorIntInitialized) {
+  vector<int> vec{4, 42, 24, 7};
 
   EXPECT_EQ(4, vec.size());
   EXPECT_EQ(4, vec[0]);
@@ -55,10 +38,8 @@ TEST_F(MMapAllocatorTest, VectorIntInitialized) {
   EXPECT_EQ(7, vec[3]);
 }
 
-TEST_F(MMapAllocatorTest, VectorDouble) {
-  auto alloc = make_allocator<double>();
-  ASSERT_FALSE(alloc.get() == NULL);
-  auto vec = make_vector<double>(alloc.get());
+TEST_F(AllocatorTest, VectorDouble) {
+  vector<double> vec;
 
   for (int i = 0; i < 10; ++i) {
     vec.push_back(sqrt(i));
@@ -71,10 +52,8 @@ TEST_F(MMapAllocatorTest, VectorDouble) {
   }
 }
 
-TEST_F(MMapAllocatorTest, VectorString) {
-  auto alloc = make_allocator<string>();
-  ASSERT_FALSE(alloc.get() == NULL);
-  auto vec = make_vector<string>(alloc.get());
+TEST_F(AllocatorTest, VectorString) {
+  vector<string> vec;
 
   for (int i = 0; i < 10; ++i) {
     vec.push_back("Hello, world!");
@@ -87,11 +66,8 @@ TEST_F(MMapAllocatorTest, VectorString) {
   }
 }
 
-TEST_F(MMapAllocatorTest, MapStringString) {
-  auto alloc = make_allocator<pair<const string, string>>();
-  ASSERT_FALSE(alloc.get() == NULL);
-  map<string, string, less<string>, MMapAllocator<pair<const string, string>>>
-      m(less<string>(), *alloc);
+TEST_F(AllocatorTest, MapStringString) {
+  map<string, string> m;
 
   m["Hello"] = "World";
   m["Goodbye"] = "All";
@@ -101,13 +77,20 @@ TEST_F(MMapAllocatorTest, MapStringString) {
   EXPECT_EQ("World", m["Hello"]);
 }
 
-TEST_F(MMapAllocatorTest, HashStringString) {
-  auto alloc = make_allocator<pair<const string, string>>();
-  ASSERT_FALSE(alloc.get() == NULL);
-  unordered_map<string, string, hash<string>, equal_to<string>,
-                MMapAllocator<pair<const string, string>>> m(10, hash<string>(),
-                                                             equal_to<string>(),
-                                                             *alloc);
+TEST_F(AllocatorTest, SetString) {
+  set<string> s;
+  
+  s.insert("foo");
+  s.insert("bar");
+
+  EXPECT_EQ(2, s.size());
+  EXPECT_EQ(1, s.count("foo"));
+  EXPECT_EQ(1, s.count("bar"));
+  EXPECT_EQ(0, s.count("baz"));
+}
+
+TEST_F(AllocatorTest, HashStringString) {
+  unordered_map<string, string> m;
 
   m["Hello"] = "World";
   m["Goodbye"] = "All";
@@ -117,40 +100,26 @@ TEST_F(MMapAllocatorTest, HashStringString) {
   EXPECT_EQ("World", m["Hello"]);
 }
 
-TEST_F(MMapAllocatorTest, Nested) {
-  using Vector = std::vector<string, MMapAllocator<string>>;
-  using Hash =
-      std::unordered_map<string, Vector, hash<string>, equal_to<string>,
-                         MMapAllocator<pair<const string, Vector>>>;
-
-  unique_ptr<Hash::allocator_type> hash_alloc(
-      Hash::allocator_type::New("test.db"));
-  Vector::allocator_type vector_alloc(*hash_alloc);
-
-  auto m = Hash(10, hash<string>(), equal_to<string>(), *hash_alloc);
+TEST_F(AllocatorTest, Nested) {
+  unordered_map<string, vector<string>> m;
   EXPECT_EQ(0, m.size());
 
-  m.insert(make_pair("foo", Vector(vector_alloc)));
-  EXPECT_EQ(1, m.size());
-  m.insert(make_pair("bar", Vector(vector_alloc)));
-  EXPECT_EQ(2, m.size());
-
-  EXPECT_EQ(0, m.at("foo").size());
   for (int i = 0; i < 10; ++i) {
-    m.at("foo").push_back(to_string(i));
+    m["foo"].push_back(to_string(i));
   }
-  EXPECT_EQ(10, m.at("foo").size());
-
-  EXPECT_EQ(0, m.at("bar").size());
-  for (int i = 0; i < 10; ++i) {
-    m.at("bar").push_back(to_string(i * i));
-  }
-  EXPECT_EQ(10, m.at("bar").size());
+  EXPECT_EQ(10, m["foo"].size());
 
   for (int i = 0; i < 10; ++i) {
-    EXPECT_EQ(to_string(i), m.at("foo")[i]);
+    m["bar"].push_back(to_string(i * i));
+  }
+  EXPECT_EQ(10, m["bar"].size());
+
+  for (int i = 0; i < 10; ++i) {
+    EXPECT_EQ(to_string(i), m["foo"][i]);
   }
   for (int i = 0; i < 10; ++i) {
-    EXPECT_EQ(to_string(i * i), m.at("bar")[i]);
+    EXPECT_EQ(to_string(i * i), m["bar"][i]);
   }
 }
+
+};  // namespace mm
