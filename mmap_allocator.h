@@ -18,12 +18,10 @@ namespace mm {
 
 const int kPageSize = sysconf(_SC_PAGE_SIZE);
 
-template<class T>
+template <class T>
 class Allocator;
 
-namespace {
-int default_fd = -1;
-}
+extern int default_fd;
 
 template <typename T>
 class Allocator {
@@ -43,30 +41,20 @@ class Allocator {
   friend class Allocator;
 
   template <typename U, typename V>
-  friend operator==(const Allocator<U>&, const Allocator<V>&);
+  friend bool operator==(const Allocator<U>&, const Allocator<V>&);
 
   template <class U>
   struct rebind {
     typedef Allocator<U> other;
   };
 
-  Allocator()
-      : 
-        sizes_(new SizeMap),
-        free_blocks_(new FreeMap) {
-  }
+  Allocator() : sizes_(new SizeMap), free_blocks_(new FreeMap) {}
 
   template <class U>
   Allocator(const Allocator<U>& other)
-      : 
-        sizes_(other.sizes_),
-        free_blocks_(other.free_blocks_) {}
+      : sizes_(other.sizes_), free_blocks_(other.free_blocks_) {}
 
   T* allocate(size_t n) {
-    if (!ensure_initialized()) {
-      return NULL;
-    }
-
     // round up to multiple of page size
     size_t to_alloc = n * sizeof(T);
     if (to_alloc % kPageSize != 0) {
@@ -80,15 +68,19 @@ class Allocator {
       return addr;
     }
 
+
     off_t previous_end = lseek(default_fd, 0, SEEK_END);
 
     if (lseek(default_fd, to_alloc - 1, SEEK_END) == -1) {
       return NULL;
     }
 
+
     if (write(default_fd, "", 1) != 1) {
       return NULL;
     }
+
+
     T* addr = static_cast<T*>(mmap(0, to_alloc, PROT_READ | PROT_WRITE,
                                    MAP_SHARED, default_fd, previous_end));
     (*sizes_)[addr] = to_alloc;
@@ -115,9 +107,6 @@ class Allocator {
   }
 
  private:
-  Allocator(int default_fd, SizeMap* sizes, FreeMap* free_blocks)
-      : sizes_(sizes), free_blocks_(free_blocks) {}
-
   // a map from allocated addresses to the "actual" sizes of their allocations
   // (as opposed to just what was requested, as requests are rounded up the
   // nearest page size multiple)
@@ -145,7 +134,7 @@ using vector = std::vector<T, Allocator<T>>;
 template <class Key, class T, class Compare = std::less<Key>>
 using map = std::map<Key, T, Compare, Allocator<std::pair<const Key, T>>>;
 
-template<class T, class Compare = std::less<T>>
+template <class T, class Compare = std::less<T>>
 using set = std::set<T, Compare, Allocator<T>>;
 
 template <class Key, class T, class Hash = std::hash<Key>,

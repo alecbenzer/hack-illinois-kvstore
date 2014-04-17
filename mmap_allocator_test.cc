@@ -10,8 +10,16 @@ namespace mm {
 
 class AllocatorTest : public testing::Test {
  protected:
-  void SetUp() { SetDefault("test.db"); }
-  void TearDown() { FreeDefault(); }
+  void SetUp() {
+    if (!SetStorage("test.db")) {
+      FAIL() << "Unable to create storage";
+    }
+  }
+  void TearDown() {
+    if (!Cleanup()) {
+      FAIL() << "Unable to cleanup storage";
+    }
+  }
 };
 
 TEST_F(AllocatorTest, VectorInt) {
@@ -79,7 +87,7 @@ TEST_F(AllocatorTest, MapStringString) {
 
 TEST_F(AllocatorTest, SetString) {
   set<string> s;
-  
+
   s.insert("foo");
   s.insert("bar");
 

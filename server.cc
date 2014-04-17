@@ -43,8 +43,7 @@ using std::string;
 using std::less;
 using std::map;
 
-Server::Server()
-{
+Server::Server() {
   std::cout << "constructing\n";
   // Set up channel infrastructure
   struct sockaddr_in svaddr;
@@ -137,11 +136,11 @@ void Server::parse(char *message, int fdClient) {
     uint32_t valueLength = ntohl(*((uint32_t *)&message[5 + keyLength]));
 
     // Get Value
-    char* value = (char *)malloc(valueLength * sizeof(char) + 1);
+    char *value = (char *)malloc(valueLength * sizeof(char) + 1);
     memcpy(value, &message[9 + keyLength], valueLength * sizeof(char));
     value[valueLength] = 0;  // null terminate the string
 
-    E_String* val = new E_String(value);
+    E_String *val = new E_String(value);
     sendResponse(set((const char *)key, val), fdClient);
 
   } else if (opcode == OP_GET) {
@@ -183,7 +182,7 @@ char *Server::get(const char *key) {
   char *strReturn;
   int size;
   std::string strKey = key;
-  E_String* value;
+  E_String *value;
   std::string strValue;
 
   auto it = kvStore.find(strKey);
@@ -204,7 +203,7 @@ char *Server::get(const char *key) {
     // Construct Successful Get Message
     uint32_t keyLtoSend = strKey.size();
     uint32_t valueLtoSend;
-    value = (E_String*)kvStore[key];
+    value = (E_String *)kvStore[key];
     strValue = value->c_str();
     valueLtoSend = strValue.size();
     strReturn = (char *)malloc(
@@ -230,7 +229,7 @@ char *Server::del(const char *key) {
   char *strReturn;
   int size;
   std::string strKey = key;
-  
+
   auto it = kvStore.find(strKey);
 
   if (it != kvStore.end()) {
@@ -246,20 +245,20 @@ char *Server::del(const char *key) {
   uint32_t msgLength = 5 + strKey.size();
   msgLength = htonl(msgLength);
   memcpy(&strReturn[0], &msgLength, INT_LENGTH);
-  strReturn[13 + strKey.size()] = 0; 
+  strReturn[13 + strKey.size()] = 0;
 
   return strReturn;
 }
 
-char *Server::set(const char *key, E_String* value)  // might be a problem converting to
-                                      // std::strings when char* isn't null
-                                      // terminated?
+char *Server::set(const char *key,
+                  E_String *value)  // might be a problem converting to
+                                    // std::strings when char* isn't null
+                                    // terminated?
 {
   char *strReturn;
   int size;
   std::string strKey = std::string(key);
-  
-  
+
   auto it = kvStore.find(strKey);
 
   kvStore[strKey] = value;  // replace
@@ -275,13 +274,11 @@ char *Server::set(const char *key, E_String* value)  // might be a problem conve
   valueLtoSend = htonl(valueLtoSend);
   // Build strReturn
   memcpy(&strReturn[0], &msgLength, INT_LENGTH);
-  strReturn[4] = OP_SET_ACK;                     
-  memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH); 
-  memcpy(&strReturn[9], key, strKey.size());       
-  memcpy(&strReturn[9 + strKey.size()], &valueLtoSend,
-         INT_LENGTH);  
-  memcpy(&strReturn[13 + strKey.size()], value->c_str(),
-         value->size());
+  strReturn[4] = OP_SET_ACK;
+  memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);
+  memcpy(&strReturn[9], key, strKey.size());
+  memcpy(&strReturn[9 + strKey.size()], &valueLtoSend, INT_LENGTH);
+  memcpy(&strReturn[13 + strKey.size()], value->c_str(), value->size());
 
   return strReturn;
 }

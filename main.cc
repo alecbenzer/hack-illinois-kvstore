@@ -3,7 +3,7 @@
 
 int main(int argc, char* argv[]) {
   std::cout << "about to set the default file.\n";
-  mm::SetDefault("test.db");
+  mm::SetStorage("test.db");
   std::cout << "successfully set default\n";
   Server test;
   std::cout << "declared server\n";

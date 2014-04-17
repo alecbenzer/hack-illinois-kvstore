@@ -13,11 +13,14 @@
 #include <iostream>
 
 class Element {
-    public:
-        enum Type { STRING, VECTOR };
-        Element();
-        ~Element();
-        virtual Type type() = 0;
+ public:
+  enum Type {
+    STRING,
+    VECTOR
+  };
+  Element();
+  ~Element();
+  virtual Type type() = 0;
 };
 /*
 class E_Vector : public Element {
@@ -30,15 +33,15 @@ class E_Vector : public Element {
 };*/
 
 class E_String : public Element {
-    public:
-        E_String(std::string t);
-        ~E_String();
-        Type type();
-        int size();
-        const char* c_str();
-    private:
-        std::string _str;
+ public:
+  E_String(std::string t);
+  ~E_String();
+  Type type();
+  int size();
+  const char* c_str();
+
+ private:
+  std::string _str;
 };
 
 #endif
-
