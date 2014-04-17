@@ -13,6 +13,7 @@
 #include <string>
 #include <map>
 #include <memory>
+#include <cstring>
 #include "mmap_allocator.h"
 #include "elements.h"
 

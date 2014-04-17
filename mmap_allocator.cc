@@ -1,11 +1,14 @@
 #include "mmap_allocator.h"
 
 namespace mm {
-void SetDefault(std::string filename) {
-  default_allocator = static_cast<void*>(Allocator<char>::New(filename));
+
+bool SetStorage(std::string filename) {
+  default_fd = open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, (mode_t)0777);
+  return default_fd != -1;
 }
 
-void FreeDefault() {
-  delete static_cast<Allocator<char>*>(default_allocator);
+bool Cleanup() {
+  return close(default_fd) == 0;
 }
+
 }

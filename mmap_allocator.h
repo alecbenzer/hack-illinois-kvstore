@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <set>
 #include <vector>
 #include <cmath>
 #include <fcntl.h>
@@ -17,9 +18,12 @@ namespace mm {
 
 const int kPageSize = sysconf(_SC_PAGE_SIZE);
 
+template<class T>
+class Allocator;
+
 namespace {
-void* default_allocator;
-};
+int default_fd = -1;
+}
 
 template <typename T>
 class Allocator {
@@ -38,33 +42,31 @@ class Allocator {
   template <class U>
   friend class Allocator;
 
+  template <typename U, typename V>
+  friend operator==(const Allocator<U>&, const Allocator<V>&);
+
   template <class U>
   struct rebind {
     typedef Allocator<U> other;
   };
 
-  static Allocator* New(std::string filename) {
-    int fd = open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, (mode_t)0777);
-    if (fd == -1) {
-      return NULL;
-    }
-
-    return new Allocator(fd, new SizeMap(), new FreeMap());
-  }
-
   Allocator()
-      : fd_(static_cast<Allocator*>(default_allocator)->fd_),
-        sizes_(static_cast<Allocator*>(default_allocator)->sizes_),
-        free_blocks_(static_cast<Allocator*>(default_allocator)->free_blocks_) {
+      : 
+        sizes_(new SizeMap),
+        free_blocks_(new FreeMap) {
   }
 
   template <class U>
   Allocator(const Allocator<U>& other)
-      : fd_(other.fd_),
+      : 
         sizes_(other.sizes_),
         free_blocks_(other.free_blocks_) {}
 
   T* allocate(size_t n) {
+    if (!ensure_initialized()) {
+      return NULL;
+    }
+
     // round up to multiple of page size
     size_t to_alloc = n * sizeof(T);
     if (to_alloc % kPageSize != 0) {
@@ -78,17 +80,17 @@ class Allocator {
       return addr;
     }
 
-    off_t previous_end = lseek(fd_, 0, SEEK_END);
+    off_t previous_end = lseek(default_fd, 0, SEEK_END);
 
-    if (lseek(fd_, to_alloc - 1, SEEK_END) == -1) {
+    if (lseek(default_fd, to_alloc - 1, SEEK_END) == -1) {
       return NULL;
     }
 
-    if (write(fd_, "", 1) != 1) {
+    if (write(default_fd, "", 1) != 1) {
       return NULL;
     }
     T* addr = static_cast<T*>(mmap(0, to_alloc, PROT_READ | PROT_WRITE,
-                                   MAP_SHARED, fd_, previous_end));
+                                   MAP_SHARED, default_fd, previous_end));
     (*sizes_)[addr] = to_alloc;
     return addr;
   }
@@ -113,10 +115,9 @@ class Allocator {
   }
 
  private:
-  Allocator(int fd, SizeMap* sizes, FreeMap* free_blocks)
-      : fd_(fd), sizes_(sizes), free_blocks_(free_blocks) {}
+  Allocator(int default_fd, SizeMap* sizes, FreeMap* free_blocks)
+      : sizes_(sizes), free_blocks_(free_blocks) {}
 
-  int fd_;
   // a map from allocated addresses to the "actual" sizes of their allocations
   // (as opposed to just what was requested, as requests are rounded up the
   // nearest page size multiple)
@@ -126,7 +127,7 @@ class Allocator {
 
 template <typename T, typename U>
 inline bool operator==(const Allocator<T>& a, const Allocator<U>& b) {
-  return a.fd() == b.fd();
+  return a.sizes_ == b.sizes_;
 }
 
 template <typename T, typename U>
@@ -134,9 +135,8 @@ inline bool operator!=(const Allocator<T>& a, const Allocator<U>& b) {
   return !(a == b);
 }
 
-void SetDefault(std::string filename);
-
-void FreeDefault();
+bool SetStorage(std::string filename);
+bool Cleanup();
 
 // Convenience typedefs of STL types
 template <typename T>
