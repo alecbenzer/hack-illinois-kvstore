@@ -22,6 +22,36 @@ class AllocatorTest : public testing::Test {
   }
 };
 
+TEST_F(AllocatorTest, Allocate) {
+  Allocator<int> alloc;
+  int* p = alloc.allocate(1);
+  ASSERT_FALSE(p == NULL);
+  *p = 4;
+  EXPECT_EQ(4, *p);
+
+  alloc.deallocate(p, 1);
+}
+
+TEST_F(AllocatorTest, New) {
+  Allocator<int> alloc;
+  int* p = new (alloc) int(4);
+  ASSERT_FALSE(p == NULL);
+  EXPECT_EQ(*p, 4);
+  *p = 42;
+  EXPECT_EQ(*p, 42);
+
+  alloc.deallocate(p, 1);
+}
+
+TEST_F(AllocatorTest, NewArray) {
+  Allocator<int> alloc;
+  int* p = new (alloc) int[10];
+  p[9] = 42;
+  EXPECT_EQ(p[9], 42);
+
+  alloc.deallocate(p, 10);
+}
+
 TEST_F(AllocatorTest, VectorInt) {
   vector<int> vec;
 

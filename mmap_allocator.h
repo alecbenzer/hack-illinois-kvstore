@@ -40,8 +40,15 @@ class Allocator {
   template <class U>
   friend class Allocator;
 
-  template <typename U, typename V>
-  friend bool operator==(const Allocator<U>&, const Allocator<V>&);
+  template <typename U>
+  bool operator==(const Allocator<U>& other) {
+    return sizes_ == other.sizes_;
+  }
+
+  template <typename U>
+  bool operator!=(const Allocator<U>& other) {
+    return !(*this == other);
+  }
 
   template <class U>
   struct rebind {
@@ -68,18 +75,15 @@ class Allocator {
       return addr;
     }
 
-
     off_t previous_end = lseek(default_fd, 0, SEEK_END);
 
     if (lseek(default_fd, to_alloc - 1, SEEK_END) == -1) {
       return NULL;
     }
 
-
     if (write(default_fd, "", 1) != 1) {
       return NULL;
     }
-
 
     T* addr = static_cast<T*>(mmap(0, to_alloc, PROT_READ | PROT_WRITE,
                                    MAP_SHARED, default_fd, previous_end));
@@ -114,16 +118,6 @@ class Allocator {
   std::shared_ptr<FreeMap> free_blocks_;
 };
 
-template <typename T, typename U>
-inline bool operator==(const Allocator<T>& a, const Allocator<U>& b) {
-  return a.sizes_ == b.sizes_;
-}
-
-template <typename T, typename U>
-inline bool operator!=(const Allocator<T>& a, const Allocator<U>& b) {
-  return !(a == b);
-}
-
 bool SetStorage(std::string filename);
 bool Cleanup();
 
@@ -143,5 +137,19 @@ using unordered_map = std::unordered_map<Key, T, Hash, KeyEqual,
                                          Allocator<std::pair<const Key, T>>>;
 
 };  // namespace mm
+
+template <class T>
+void* operator new(size_t size, mm::Allocator<T>& alloc) {
+  return alloc.allocate(size);
+}
+
+template <class T>
+void* operator new [](size_t size, mm::Allocator<T>& alloc) {
+  return alloc.allocate(size);
+} template <class T>
+void operator delete(void* p, mm::Allocator<T>& alloc) {
+  alloc.deallocate(static_cast<T*>(p),
+                   0);  // size argument is ignored by mm::Allocator::deallocate
+}
 
 #endif
