@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include "mmap_allocator.h"
 
 class Element {
  public:
@@ -32,16 +33,14 @@ class E_Vector : public Element {
         std::vector<std::string> _vec;
 };*/
 
-class E_String : public Element {
+class String : public Element {
  public:
-  E_String(std::string t);
-  ~E_String();
+  String(std::string t);
   Type type();
-  int size();
-  const char* c_str();
+  const mm::string& str() const;
 
  private:
-  std::string _str;
+  mm::string str_;
 };
 
 #endif

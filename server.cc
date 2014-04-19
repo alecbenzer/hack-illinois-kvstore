@@ -140,7 +140,7 @@ void Server::parse(char *message, int fdClient) {
     memcpy(value, &message[9 + keyLength], valueLength * sizeof(char));
     value[valueLength] = 0;  // null terminate the string
 
-    E_String *val = new E_String(value);
+    String *val = new String(value);
     sendResponse(set((const char *)key, val), fdClient);
 
   } else if (opcode == OP_GET) {
@@ -182,7 +182,7 @@ char *Server::get(const char *key) {
   char *strReturn;
   int size;
   std::string strKey = key;
-  E_String *value;
+  String *value;
   std::string strValue;
 
   auto it = kvStore.find(strKey);
@@ -203,8 +203,8 @@ char *Server::get(const char *key) {
     // Construct Successful Get Message
     uint32_t keyLtoSend = strKey.size();
     uint32_t valueLtoSend;
-    value = (E_String *)kvStore[key];
-    strValue = value->c_str();
+    value = (String *)kvStore[key];
+    strValue = value->str().c_str();
     valueLtoSend = strValue.size();
     strReturn = (char *)malloc(
         (13 + strKey.size() + strValue.size()) * sizeof(char) + 1);
@@ -251,7 +251,7 @@ char *Server::del(const char *key) {
 }
 
 char *Server::set(const char *key,
-                  E_String *value)  // might be a problem converting to
+                  String *value)  // might be a problem converting to
                                     // std::strings when char* isn't null
                                     // terminated?
 {
@@ -263,9 +263,9 @@ char *Server::set(const char *key,
 
   kvStore[strKey] = value;  // replace
 
-  uint32_t msgLength = 9 + strKey.size() + value->size();
+  uint32_t msgLength = 9 + strKey.size() + value->str().size();
   uint32_t keyLtoSend = strKey.size();
-  uint32_t valueLtoSend = value->size();
+  uint32_t valueLtoSend = value->str().size();
 
   strReturn = (char *)malloc((4 + msgLength) * sizeof(char));
 
@@ -278,7 +278,7 @@ char *Server::set(const char *key,
   memcpy(&strReturn[5], &keyLtoSend, INT_LENGTH);
   memcpy(&strReturn[9], key, strKey.size());
   memcpy(&strReturn[9 + strKey.size()], &valueLtoSend, INT_LENGTH);
-  memcpy(&strReturn[13 + strKey.size()], value->c_str(), value->size());
+  memcpy(&strReturn[13 + strKey.size()], value->str().c_str(), value->str().size());
 
   return strReturn;
 }

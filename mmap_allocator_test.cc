@@ -3,7 +3,6 @@
 #include <gtest/gtest.h>
 #include "mmap_allocator.h"
 
-using std::string;
 using std::to_string;
 
 
@@ -120,7 +119,7 @@ TEST_F(AllocatorTest, VectorDouble) {
 }
 
 TEST_F(AllocatorTest, VectorString) {
-  vector<string> vec;
+  vector<std::string> vec;
 
   for (int i = 0; i < 10; ++i) {
     vec.push_back("Hello, world!");
@@ -134,7 +133,7 @@ TEST_F(AllocatorTest, VectorString) {
 }
 
 TEST_F(AllocatorTest, MapStringString) {
-  map<string, string> m;
+  map<std::string, std::string> m;
 
   m["Hello"] = "World";
   m["Goodbye"] = "All";
@@ -145,7 +144,7 @@ TEST_F(AllocatorTest, MapStringString) {
 }
 
 TEST_F(AllocatorTest, SetString) {
-  set<string> s;
+  set<std::string> s;
 
   s.insert("foo");
   s.insert("bar");
@@ -157,7 +156,7 @@ TEST_F(AllocatorTest, SetString) {
 }
 
 TEST_F(AllocatorTest, HashStringString) {
-  unordered_map<string, string> m;
+  unordered_map<std::string, std::string> m;
 
   m["Hello"] = "World";
   m["Goodbye"] = "All";
@@ -168,7 +167,7 @@ TEST_F(AllocatorTest, HashStringString) {
 }
 
 TEST_F(AllocatorTest, Nested) {
-  unordered_map<string, vector<string>> m;
+  unordered_map<std::string, vector<std::string>> m;
   EXPECT_EQ(0, m.size());
 
   for (int i = 0; i < 10; ++i) {

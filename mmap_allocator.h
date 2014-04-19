@@ -41,12 +41,12 @@ class Allocator {
   friend class Allocator;
 
   template <typename U>
-  bool operator==(const Allocator<U>& other) {
+  bool operator==(const Allocator<U>& other) const {
     return sizes_ == other.sizes_;
   }
 
   template <typename U>
-  bool operator!=(const Allocator<U>& other) {
+  bool operator!=(const Allocator<U>& other) const {
     return !(*this == other);
   }
 
@@ -140,6 +140,14 @@ template <class Key, class T, class Hash = std::hash<Key>,
           class KeyEqual = std::equal_to<Key>>
 using unordered_map = std::unordered_map<Key, T, Hash, KeyEqual,
                                          Allocator<std::pair<const Key, T>>>;
+
+template<class CharT, class Traits = std::char_traits<CharT>>
+using basic_string = std::basic_string<CharT, Traits, Allocator<CharT>>;
+
+using string = basic_string<char>;
+using wstring = basic_string<wchar_t>;
+using u16string = basic_string<char16_t>;
+using u32string = basic_string<char32_t>;
 
 };  // namespace mm
 

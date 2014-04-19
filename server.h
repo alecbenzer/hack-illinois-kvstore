@@ -32,7 +32,7 @@ class Server {
   void parse(char* message, int fdClient);
 
   // Handle Set
-  char* set(const char* key, E_String* value);
+  char* set(const char* key, String* value);
 
   // Handle Get
   char* get(const char* key);
