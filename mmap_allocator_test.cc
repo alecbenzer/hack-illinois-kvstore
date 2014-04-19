@@ -69,7 +69,7 @@ TEST_F(AllocatorTest, NewConstructor) {
   Foo* foo = new (alloc) Foo(49);
   EXPECT_EQ(49, foo->x);
 
-  alloc.deallocate(foo, 1);
+  alloc.deallocate(foo);
 }
 
 TEST_F(AllocatorTest, Destructor) {
