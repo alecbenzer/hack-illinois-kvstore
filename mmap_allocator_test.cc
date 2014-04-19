@@ -6,7 +6,19 @@
 using std::string;
 using std::to_string;
 
+
 namespace mm {
+
+struct Foo {
+  Foo(int x) : x(x) {}
+  ~Foo() { y = x; }
+
+  int x;
+  static int y;
+};
+
+int Foo::y = 0;
+
 
 class AllocatorTest : public testing::Test {
  protected:
@@ -50,6 +62,23 @@ TEST_F(AllocatorTest, NewArray) {
   EXPECT_EQ(p[9], 42);
 
   alloc.deallocate(p, 10);
+}
+
+TEST_F(AllocatorTest, NewConstructor) {
+  Allocator<Foo> alloc;
+  Foo* foo = new (alloc) Foo(49);
+  EXPECT_EQ(49, foo->x);
+
+  alloc.deallocate(foo, 1);
+}
+
+TEST_F(AllocatorTest, Destructor) {
+  Allocator<Foo> alloc;
+  Foo* foo = new (alloc) Foo(49);
+  alloc.destroy(foo);
+  alloc.deallocate(foo, 1);
+
+  EXPECT_EQ(49, Foo::y);
 }
 
 TEST_F(AllocatorTest, VectorInt) {
