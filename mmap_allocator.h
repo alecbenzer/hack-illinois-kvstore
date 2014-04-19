@@ -91,6 +91,11 @@ class Allocator {
     return addr;
   }
 
+  // We don't actually need a passed-in size for deallocate, so we have this function for convenience.
+  void deallocate(T* p) {
+    deallocate(p, 0);
+  }
+
   void deallocate(T* p, size_t n) {
     auto to_free = (*sizes_)[(void*)p];
     (*free_blocks_)[to_free].push_back((void*)p);
@@ -148,8 +153,7 @@ void* operator new [](size_t size, mm::Allocator<T>& alloc) {
   return alloc.allocate(size);
 } template <class T>
 void operator delete(void* p, mm::Allocator<T>& alloc) {
-  alloc.deallocate(static_cast<T*>(p),
-                   0);  // size argument is ignored by mm::Allocator::deallocate
+  alloc.deallocate(static_cast<T*>(p));
 }
 
 #endif
