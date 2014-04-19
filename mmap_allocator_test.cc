@@ -41,7 +41,7 @@ TEST_F(AllocatorTest, Allocate) {
   *p = 4;
   EXPECT_EQ(4, *p);
 
-  alloc.deallocate(p, 1);
+  alloc.deallocate(p);
 }
 
 TEST_F(AllocatorTest, New) {
@@ -52,7 +52,7 @@ TEST_F(AllocatorTest, New) {
   *p = 42;
   EXPECT_EQ(*p, 42);
 
-  alloc.deallocate(p, 1);
+  alloc.deallocate(p);
 }
 
 TEST_F(AllocatorTest, NewArray) {
@@ -61,7 +61,7 @@ TEST_F(AllocatorTest, NewArray) {
   p[9] = 42;
   EXPECT_EQ(p[9], 42);
 
-  alloc.deallocate(p, 10);
+  alloc.deallocate(p);
 }
 
 TEST_F(AllocatorTest, NewConstructor) {
@@ -76,7 +76,7 @@ TEST_F(AllocatorTest, Destructor) {
   Allocator<Foo> alloc;
   Foo* foo = new (alloc) Foo(49);
   alloc.destroy(foo);
-  alloc.deallocate(foo, 1);
+  alloc.deallocate(foo);
 
   EXPECT_EQ(49, Foo::y);
 }
