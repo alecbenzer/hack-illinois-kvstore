@@ -25,6 +25,7 @@ class AllocatorTest : public testing::Test {
     if (!SetStorage("test.db")) {
       FAIL() << "Unable to create storage";
     }
+    Foo::y = 0;
   }
   void TearDown() {
     if (!Cleanup()) {
@@ -72,10 +73,46 @@ TEST_F(AllocatorTest, NewConstructor) {
 }
 
 TEST_F(AllocatorTest, Destructor) {
+  EXPECT_EQ(0, Foo::y);
+
   Allocator<Foo> alloc;
   Foo* foo = new (alloc) Foo(49);
   alloc.destroy(foo);
   alloc.deallocate(foo);
+
+  EXPECT_EQ(49, Foo::y);
+}
+
+TEST_F(AllocatorTest, MakeUnique) {
+  EXPECT_EQ(0, Foo::y);
+
+  Allocator<Foo> alloc;
+  Foo* p = new (alloc) Foo(49);
+  {
+    auto up = alloc.make_unique(p);
+  }  // up should delete p here
+  EXPECT_EQ(49, Foo::y);
+}
+
+TEST_F(AllocatorTest, CreateUnique) {
+  EXPECT_EQ(0, Foo::y);
+
+  Allocator<Foo> alloc;
+  {
+    auto up = alloc.create_unique(1);
+    new (up.get()) Foo(49);
+  }
+
+  EXPECT_EQ(49, Foo::y);
+}
+
+TEST_F(AllocatorTest, ConstructUnique) {
+  EXPECT_EQ(0, Foo::y);
+
+  Allocator<Foo> alloc;
+  {
+    auto up = alloc.construct_unique(49);
+  }
 
   EXPECT_EQ(49, Foo::y);
 }

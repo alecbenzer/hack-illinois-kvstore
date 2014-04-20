@@ -21,6 +21,9 @@ const int kPageSize = sysconf(_SC_PAGE_SIZE);
 template <class T>
 class Allocator;
 
+template <class T>
+class Deleter;
+
 extern int default_fd;
 
 template <typename T>
@@ -115,12 +118,44 @@ class Allocator {
     p->~U();
   }
 
+  std::unique_ptr<T, Deleter<T>> make_unique(pointer p) {
+    return std::unique_ptr<T, Deleter<T>>(p, Deleter<T>(this));
+  }
+
+  std::unique_ptr<T, Deleter<T>> create_unique() {
+    return make_unique(allocate(1));
+  }
+
+  std::unique_ptr<T, Deleter<T>> create_unique(size_t size) {
+    return make_unique(allocate(size));
+  }
+
+  template <class... Args>
+  std::unique_ptr<T, Deleter<T>> construct_unique(Args&&... args) {
+    auto up = create_unique();
+    ::new (up.get()) T(std::forward<Args>(args)...);
+    return up;
+  }
+
  private:
   // a map from allocated addresses to the "actual" sizes of their allocations
   // (as opposed to just what was requested, as requests are rounded up the
   // nearest page size multiple)
   std::shared_ptr<SizeMap> sizes_;
   std::shared_ptr<FreeMap> free_blocks_;
+};
+
+template<class T>
+class Deleter {
+ public:
+  Deleter(Allocator<T>* alloc) : alloc_(alloc) {}
+  void operator()(T* p) {
+    alloc_->destroy(p);
+    alloc_->deallocate(p);
+  }
+
+ private:
+  Allocator<T>* alloc_;
 };
 
 bool SetStorage(std::string filename);
