@@ -46,7 +46,7 @@ class Server {
   // TCP Socket
   int sock;
 
-  mm::unordered_map<std::string, Element*> kvStore;
+  mm::unordered_map<std::string, std::unique_ptr<Element>> kvStore;
 };
 
 #endif

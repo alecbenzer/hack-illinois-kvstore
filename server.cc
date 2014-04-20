@@ -203,7 +203,7 @@ char *Server::get(const char *key) {
     // Construct Successful Get Message
     uint32_t keyLtoSend = strKey.size();
     uint32_t valueLtoSend;
-    value = (String *)kvStore[key];
+    value = (String *)kvStore[key].get();
     strValue = value->str().c_str();
     valueLtoSend = strValue.size();
     strReturn = (char *)malloc(
@@ -257,11 +257,9 @@ char *Server::set(const char *key,
 {
   char *strReturn;
   int size;
-  std::string strKey = std::string(key);
+  std::string strKey(key);
 
-  auto it = kvStore.find(strKey);
-
-  kvStore[strKey] = value;  // replace
+  kvStore[strKey] = std::unique_ptr<Element>(value);  // replace
 
   uint32_t msgLength = 9 + strKey.size() + value->str().size();
   uint32_t keyLtoSend = strKey.size();
