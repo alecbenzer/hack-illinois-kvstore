@@ -1,50 +1,37 @@
-import kvstore as kv
-import cmd
+import socket
+import struct
+import kvstore_pb2
 
-def parse(arg):
-    return tuple(map(str, arg.split()))
+class Client:
+    def __init__(self, addr):
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print "Trying to connect to", addr
+        self.sock.connect(addr)
+        self.struct = struct.Struct('!L')
+        assert self.struct.size == 4
 
-class CLI(cmd.Cmd):
-    def __init__(self):
-        cmd.Cmd.__init__(self)
-        self.prompt = '> '
+    def send_message(self, msg):
+        data = msg.SerializeToString()
 
-    def do_del(self, key):
-        kv.do_del(key)
+        self.sock.send(self.struct.pack(len(data)))
+        self.sock.send(data)
 
-    def help_del(self):
-        print "syntax: del [key]",
-        print "-- deletes the entry for [key] from the database if it exists"
+    def receive_message(self):
+        bytes_to_read = self.struct.unpack(self.sock.recv(self.struct.size))[0]
+        print bytes_to_read
+        response = kvstore_pb2.Response()
+        response.ParseFromString(self.sock.recv(bytes_to_read))
+        
+        print response
 
-    def do_get(self, key):
-        kv.do_get(key)
+    def get(self, key):
+        request = kvstore_pb2.Request()
+        request.get_request.key = key
+        self.send_message(request)
 
-    def help_get(self):
-        print "syntax: get [key]",
-        print "-- gets the value associated with [key] from the database if it exists, nil if it doesnt."
+        data = request.SerializeToString()
 
-    def do_set(self, arg):
-        kv.do_set(*parse(arg))
+        self.sock.send(self.struct.pack(len(data)))
+        self.sock.send(data)
 
-    def help_set(self):
-        print "syntax: set [key] [val]",
-        print "-- maps [key] to [val] in the database. Will overwrite existing value if [key] is already mapped to something."
-
-    def do_getset(self, arg):
-        kv.do_getset(*parse(arg))
-
-    def help_getset(self):
-        print "syntax: getset [key] [val]",
-        print "-- will get the value associated with [key] and then replace it with [val]"
-
-    def do_quit(self, arg):
-        import sys
-        sys.exit(1)
-
-    def help_quit(self):
-        print "syntax: quit",
-        print "-- terminates the application"
-
-if __name__=="__main__":
-    cli = CLI()
-    cli.cmdloop()
+        self.receive_message()

@@ -2,11 +2,19 @@
 #include <iostream>
 
 int main(int argc, char* argv[]) {
-  std::cout << "about to set the default file.\n";
   mm::SetStorage("test.db");
-  std::cout << "successfully set default\n";
-  Server test;
-  std::cout << "declared server\n";
-  test.run();
+
+  int port = 10000;
+  if (argc >= 2) {
+    port = std::stoi(argv[1]);
+  }
+
+  Server server;
+  if (!server.Run(port)) {
+    printf("SERVER EXITING NUB\n");
+    return 1;
+  }
+
+  printf("SERVER EXITING NUB\n");
   return 0;
 }

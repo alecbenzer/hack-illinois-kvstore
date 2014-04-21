@@ -20,6 +20,11 @@
 *.out
 *.app
 
+# Protocol buffers
+*.pb.cc
+*.pb.h
+*_pb2.py
+
 # Other
 *.swp
 test.db

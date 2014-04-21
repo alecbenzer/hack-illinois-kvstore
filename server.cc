@@ -36,87 +36,107 @@
 
 #define BUF_SIZE 256
 #define MAXBUF 256
-#define PORT_NO 9999
 
 using std::pair;
 using std::string;
 using std::less;
 using std::map;
 
-Server::Server() {
-  std::cout << "constructing\n";
-  // Set up channel infrastructure
-  struct sockaddr_in svaddr;
-  memset(&svaddr, 0, sizeof(struct sockaddr_in));
-  sock = socket(AF_INET, SOCK_STREAM, 0);
-  svaddr.sin_family = AF_INET;
-
-  // Endian Conversion
-  std::string locHost = "127.0.0.1";
-  inet_pton(AF_INET, locHost.c_str(), &svaddr.sin_addr);
-  svaddr.sin_port = htons(PORT_NO);
-
-  if (bind(sock, (struct sockaddr *)&svaddr, sizeof(struct sockaddr_in)) ==
-      -1) {
-    perror("bind");
+bool Server::Run(int port) {
+  sock_ = socket(AF_INET, SOCK_STREAM, 0);
+  if (sock_ == -1) {
+    perror("failed creating socket");
+    return false;
   }
 
-  /*---Make it a "listening socket"---*/
-  if (listen(sock, 20) != 0) {
-    perror("socket--listen");
-    exit(errno);
+  struct sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+  addr.sin_port = htons(port);
+
+  if (bind(sock_, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    perror("failed binding socket");
+    return false;
   }
 
-  std::cout << "done constructing\n";
+  printf("addr.sin_port: %d\n", addr.sin_port);
+
+  if (listen(sock_, 20) != 0) {
+    perror("failed listening on socket");
+    return false;
+  }
+
+  printf("Listening on port %d\n", ntohs(addr.sin_port));
+
+  while (1) {
+    printf("Waiting...\n");
+    int clientfd = accept(sock_, NULL, NULL);
+    printf("got one: %d\n", clientfd);
+
+    threads_.push_back(std::thread(&Server::ProcessClient, this, clientfd));
+  }
 }
 
-Server::~Server() { sock = 0; }
+void Server::ProcessClient(int sock) {
+  printf("ProcessClient(%d)\n", sock);
+  fflush(stdout);
 
-void Server::run() {
-  std::cout << "==============\n";
-  std::cout << "Server Running\n";
-  std::cout << "==============\n";
-
-  /*---Forever... ---*/
   while (1) {
-    int clientfd;
-    struct sockaddr_in client_addr;
-    socklen_t addrlen = sizeof(client_addr);
-
-    memset(&client_addr, 0, sizeof(struct sockaddr_in));
-    client_addr.sin_family = AF_INET;
-
-    // Endian Conversion
-    std::string locHost = "127.0.0.1";
-    inet_pton(AF_INET, locHost.c_str(), &client_addr.sin_addr);
-    client_addr.sin_port = htons(PORT_NO);
-
-    /*---accept a connection (creating a data pipe)---*/
-    clientfd = accept(sock, (struct sockaddr *)&client_addr, &addrlen);
-    // printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr),
-    // ntohs(client_addr.sin_port));
-
-    /*---Handle the Message Sent---*/
-    uint32_t count;
-    int r;
-
-    r = recv(clientfd, &count, INT_LENGTH, 0);
-    count = ntohl(count);
-    // std::cout << "r: " << r << ", count: " << count << std::endl;
-    if (r >= 0) {
-      char *buf = (char *)malloc(count * sizeof(char));
-      r = recv(clientfd, buf, count, 0);
-      // std::cout << count << r << std::endl;
-      if (r != count)
-        std::cout << "Error: Invalid Read Length\n";
-      else {
-        parse(buf, clientfd);
-      }
+    uint32_t bytes;
+    if (read(sock, &bytes, sizeof(bytes)) < 0) {
+      perror("Error reading from socket");
+      return;
     }
-    // send(clientfd, buffer, recv(clientfd, buffer, MAXBUF, 0), 0);
+    bytes = ntohl(bytes);
+    char* buffer = static_cast<char*>(malloc(bytes + 1));
+    if (read(sock, buffer, bytes) != bytes) {
+      fprintf(stderr, "Error reading from socket: expecting %zd bytes\n", bytes);
+      return;
+    }
+    buffer[bytes] = '\0';
 
-    /*---Close data connection---*/
-    close(clientfd);
+    kvstore::Request request;
+    kvstore::Response response;
+    if (!request.ParseFromString(buffer)) {
+      fprintf(stderr, "Error parsing protobuf message\n");
+      return;
+    }
+
+    HandleMessage(request, &response);
+
+    std::string payload;
+    if (!response.SerializeToString(&payload)) {
+      fprintf(stderr, "can't serialize dat shit\n");
+    }
+
+    bytes = htonl(payload.size());
+    printf("Sending size\n");
+    write(sock, static_cast<void*>(&bytes), sizeof(bytes));
+    printf("Sending payload '%s'\n", payload.c_str());
+    write(sock, payload.c_str(), payload.size());
+  }
+  close(sock);
+}
+
+void Server::HandleMessage(const kvstore::Request& request, kvstore::Response* response) {
+  if (request.has_get_request()) {
+    const std::string& key = request.get_request().key();
+    Element* element = map_[key].get();
+    if (element == NULL) {
+      response->set_error("Key doesn't exist");
+      return;
+    }
+    if (element->type() != Element::STRING) {
+      response->set_error("Value not a string");
+      return;
+    }
+    String* value = static_cast<String*>(element);
+
+    response->mutable_get_response()->set_key(key);
+    response->mutable_get_response()->set_value(value->str().c_str());
+  } else {
+    response->set_error("Unknown request format");
   }
 }
 
@@ -185,9 +205,9 @@ char *Server::get(const char *key) {
   String *value;
   std::string strValue;
 
-  auto it = kvStore.find(strKey);
+  auto it = map_.find(strKey);
 
-  if (it == kvStore.end()) {
+  if (it == map_.end()) {
     // Construct Fail Get Message
     uint32_t keyLtoSend = strKey.size();
     strReturn = (char *)malloc((9 + strKey.size()) * sizeof(char) + 1);
@@ -203,7 +223,7 @@ char *Server::get(const char *key) {
     // Construct Successful Get Message
     uint32_t keyLtoSend = strKey.size();
     uint32_t valueLtoSend;
-    value = (String *)kvStore[key].get();
+    value = (String *)map_[key].get();
     strValue = value->str().c_str();
     valueLtoSend = strValue.size();
     strReturn = (char *)malloc(
@@ -230,10 +250,10 @@ char *Server::del(const char *key) {
   int size;
   std::string strKey = key;
 
-  auto it = kvStore.find(strKey);
+  auto it = map_.find(strKey);
 
-  if (it != kvStore.end()) {
-    kvStore.erase(strKey);
+  if (it != map_.end()) {
+    map_.erase(strKey);
   }
 
   uint32_t keyLtoSend = strKey.size();
@@ -259,7 +279,7 @@ char *Server::set(const char *key,
   int size;
   std::string strKey(key);
 
-  kvStore[strKey] = std::unique_ptr<Element>(value);  // replace
+  map_[strKey] = std::unique_ptr<Element>(value);  // replace
 
   uint32_t msgLength = 9 + strKey.size() + value->str().size();
   uint32_t keyLtoSend = strKey.size();
