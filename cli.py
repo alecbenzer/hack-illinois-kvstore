@@ -34,7 +34,8 @@ class CLI(cmd.Cmd):
         print "-- gets the value associated with [key] from the database if it exists, nil if it doesnt."
 
     def do_set(self, arg):
-        kv.do_set(*parse(arg))
+        key, value = parse(arg)
+        self.client.set(key, value)
 
     def help_set(self):
         print "syntax: set [key] [val]",

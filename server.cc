@@ -135,6 +135,12 @@ void Server::HandleMessage(const kvstore::Request& request, kvstore::Response* r
 
     response->mutable_get_response()->set_key(key);
     response->mutable_get_response()->set_value(value->str().c_str());
+  } else if (request.has_set_request()) {
+    const std::string& key = request.set_request().key();
+    const std::string& value = request.set_request().value();
+    map_[key].reset(new String(value));
+
+    response->mutable_set_response()->set_key(key);
   } else {
     response->set_error("Unknown request format");
   }

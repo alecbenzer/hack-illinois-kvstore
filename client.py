@@ -28,10 +28,11 @@ class Client:
         request = kvstore_pb2.Request()
         request.get_request.key = key
         self.send_message(request)
+        self.receive_message()
 
-        data = request.SerializeToString()
-
-        self.sock.send(self.struct.pack(len(data)))
-        self.sock.send(data)
-
+    def set(self, key, value):
+        request = kvstore_pb2.Request()
+        request.set_request.key = key
+        request.set_request.value = value
+        self.send_message(request)
         self.receive_message()
